@@ -76,6 +76,26 @@ body {
   margin-bottom: 12px;
 }
 
+.gate-foot {
+  margin-top: 16px;
+  font-size: 11.5px;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+.link-btn {
+  font-family: inherit;
+  font-size: 11.5px;
+  color: var(--accent);
+  background: none;
+  border: none;
+  padding: 0;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 /* ---------- Thanh trên ---------- */
 .topbar {
   display: flex;

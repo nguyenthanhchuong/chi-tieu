@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Sổ Chi Tiêu">
-<link rel="stylesheet" href="style.css?v=4">
+<link rel="stylesheet" href="style.css?v=5">
 </head>
 <body>
 
@@ -24,6 +24,12 @@
            inputmode="numeric" autocomplete="off" placeholder="••••••">
     <p class="gate-error" id="gate-error" hidden></p>
     <button type="button" class="btn-primary" id="pin-submit">Mở sổ</button>
+
+    <!-- Số hiệu bản giúp biết máy đang chạy bản nào khi cần dò lỗi -->
+    <p class="gate-foot">
+      <span id="app-version">bản —</span>
+      <button type="button" class="link-btn" id="btn-reset">Tải lại bản mới</button>
+    </p>
   </div>
 </div>
 
@@ -77,6 +83,6 @@
   <div class="toast" id="toast" hidden></div>
 </div>
 
-<script src="app.js?v=4"></script>
+<script src="app.js?v=5"></script>
 </body>
 </html>

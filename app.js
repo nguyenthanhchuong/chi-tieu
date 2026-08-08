@@ -49,6 +49,9 @@ function todayKey() {
 }
 
 // ===== Gọi API =====
+// Tăng mỗi lần sửa app, hiển thị ở màn hình PIN để biết máy đang chạy bản nào.
+const APP_VERSION = "5";
+
 const RETRY_DELAYS = [700, 1800, 3500]; // giãn dần, tránh dội liên tục vào Google
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
@@ -164,6 +167,35 @@ function initGate() {
 
   // Có mã lưu sẵn thì thử ngầm, KHÔNG đổ vào ô nhập để tránh dính mã cũ.
   if (store.pin) openWith(store.pin, true);
+}
+
+// Cho phép người dùng tự dọn bản cũ kẹt trong máy mà không cần vào cài đặt
+// trình duyệt: gỡ service worker, xoá cache, rồi tải lại kèm đuôi chống đệm.
+function initResetButton() {
+  const nhan = $("app-version");
+  if (nhan) nhan.textContent = "bản " + APP_VERSION;
+
+  const btn = $("btn-reset");
+  if (!btn) return;
+
+  btn.addEventListener("click", async () => {
+    btn.disabled = true;
+    btn.textContent = "Đang dọn…";
+    try {
+      if ("serviceWorker" in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map(r => r.unregister()));
+      }
+      if ("caches" in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map(k => caches.delete(k)));
+      }
+      localStorage.removeItem("ct_pin");
+    } catch (err) {
+      // Dọn được tới đâu hay tới đó, vẫn tải lại để lấy bản mới.
+    }
+    location.replace(location.pathname + "?moi=" + Date.now());
+  });
 }
 
 // ===== Dựng các nút chọn =====
@@ -361,6 +393,7 @@ function init() {
     if (!document.hidden && !$("app").hidden) flushQueue();
   });
 
+  initResetButton();
   initGate();
 
   if ("serviceWorker" in navigator) {
