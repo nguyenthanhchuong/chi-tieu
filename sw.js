@@ -1,11 +1,17 @@
 // Service worker: giữ phần vỏ app trong máy để mở được cả khi mất mạng.
-// Tăng CACHE_VERSION mỗi lần sửa giao diện để máy tải bản mới.
-const CACHE_VERSION = "chi-tieu-v3";
+//
+// Chiến lược: ƯU TIÊN MẠNG (network-first), cache chỉ là phương án dự phòng.
+//
+// Bản đầu dùng cache-first và đó là một sai lầm: máy đã lưu index.html thì
+// vĩnh viễn chạy bản cũ, mọi bản sửa đẩy lên đều không tới được người dùng.
+// App này luôn cần mạng để lấy dữ liệu từ Google, nên ưu tiên mạng không làm
+// mất gì, mà lại bảo đảm người dùng luôn chạy bản mới nhất.
+const CACHE_VERSION = "chi-tieu-v4";
 const SHELL = [
   "./",
   "./index.html",
-  "./style.css?v=3",
-  "./app.js?v=3",
+  "./style.css?v=4",
+  "./app.js?v=4",
   "./manifest.json"
 ];
 
@@ -30,18 +36,20 @@ self.addEventListener("activate", event => {
 self.addEventListener("fetch", event => {
   const req = event.request;
 
-  // Chỉ phục vụ phần vỏ từ cache. Lệnh gọi Apps Script luôn đi thẳng ra mạng
-  // để không bao giờ đọc phải số liệu cũ.
+  // Lệnh gọi Apps Script đi thẳng ra mạng, không đụng tới cache.
   if (req.method !== "GET" || !req.url.startsWith(self.location.origin)) return;
 
   event.respondWith(
-    caches.match(req).then(hit => {
-      if (hit) return hit;
-      return fetch(req).then(res => {
+    fetch(req)
+      .then(res => {
+        // Tải được thì cập nhật lại bản dự phòng cho lần mất mạng sau.
         const copy = res.clone();
         caches.open(CACHE_VERSION).then(c => c.put(req, copy)).catch(() => {});
         return res;
-      });
-    }).catch(() => caches.match("./index.html"))
+      })
+      .catch(() =>
+        // Mất mạng: dùng bản đã lưu, không có thì trả trang chính.
+        caches.match(req).then(hit => hit || caches.match("./index.html"))
+      )
   );
 });
