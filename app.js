@@ -49,9 +49,28 @@ function todayKey() {
 }
 
 // ===== Gọi API =====
+const RETRY_DELAYS = [700, 1800, 3500]; // giãn dần, tránh dội liên tục vào Google
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+// Đổi lỗi kỹ thuật thành câu người dùng đọc hiểu được.
+function friendlyError(err) {
+  const msg = String((err && err.message) || err || "");
+  if (err && err.pinError) return "PIN không đúng.";
+  if (/Failed to fetch|NetworkError|Load failed|network/i.test(msg)) {
+    return "Không kết nối được, anh kiểm tra mạng giúp nhé.";
+  }
+  if (/\b(4\d\d|5\d\d)\b/.test(msg)) {
+    return "Máy chủ đang bận, anh thử lại sau chút nhé.";
+  }
+  if (/JSON|Unexpected token/i.test(msg)) {
+    return "Máy chủ trả dữ liệu lạ, anh thử lại giúp nhé.";
+  }
+  return "Có trục trặc, anh thử lại giúp nhé.";
+}
+
 // Apps Script chuyển hướng khi trả kết quả nên phải dùng text/plain:
 // tránh preflight CORS, nếu dùng application/json trình duyệt sẽ chặn.
-async function callApi(action, payload = {}) {
+async function callApiOnce(action, payload) {
   if (!API_URL) throw new Error("Chưa cấu hình API_URL");
   const res = await fetch(API_URL, {
     method: "POST",
@@ -60,8 +79,34 @@ async function callApi(action, payload = {}) {
   });
   if (!res.ok) throw new Error("Máy chủ trả lỗi " + res.status);
   const data = await res.json();
-  if (!data.ok) throw new Error(data.error || "Lỗi không rõ");
+  if (!data.ok) {
+    const err = new Error(data.error || "Lỗi không rõ");
+    // Sai PIN là lỗi cố định: thử lại bao nhiêu lần cũng vẫn sai.
+    if (String(data.error || "").includes("PIN")) err.pinError = true;
+    throw err;
+  }
   return data;
+}
+
+// Google có lúc trả 404/5xx nhất thời khi đang xoay vòng phiên bản deploy,
+// nên lỗi mạng được thử lại vài lần trước khi báo cho người dùng.
+async function callApi(action, payload = {}, options = {}) {
+  const maxRetry = options.retries === undefined ? 2 : options.retries;
+  let lastErr;
+
+  for (let lan = 0; lan <= maxRetry; lan++) {
+    try {
+      return await callApiOnce(action, payload);
+    } catch (err) {
+      lastErr = err;
+      if (err.pinError) throw err;
+      if (lan < maxRetry) {
+        if (options.onRetry) options.onRetry(lan + 1, maxRetry);
+        await sleep(RETRY_DELAYS[lan] || 3500);
+      }
+    }
+  }
+  throw lastErr;
 }
 
 // ===== Màn hình PIN =====
@@ -85,7 +130,12 @@ function initGate() {
 
     store.pin = pin;
     try {
-      await loadEntries();
+      await loadEntries({
+        retries: 3,
+        onRetry: (lan, tong) => {
+          submitBtn.textContent = `Mạng chậm, thử lại ${lan}/${tong}…`;
+        }
+      });
       gate.hidden = true;
       $("app").hidden = false;
       flushQueue();
@@ -94,14 +144,9 @@ function initGate() {
       // Dọn sạch ô nhập: nếu để mã cũ nằm lại, mã mới người dùng gõ sẽ bị
       // nối vào đuôi mã cũ và luôn luôn sai dù gõ đúng.
       input.value = "";
-      const saiPin = err.message.includes("PIN");
-      if (silent) {
-        error.textContent = saiPin
-          ? "Mã PIN đã đổi, anh nhập mã mới nhé."
-          : err.message;
-      } else {
-        error.textContent = saiPin ? "PIN không đúng." : err.message;
-      }
+      error.textContent = (silent && err.pinError)
+        ? "Mã PIN đã đổi, anh nhập mã mới nhé."
+        : friendlyError(err);
       error.hidden = false;
       input.focus();
     } finally {
@@ -210,8 +255,8 @@ function render() {
   }
 }
 
-async function loadEntries() {
-  const data = await callApi("list");
+async function loadEntries(options = {}) {
+  const data = await callApi("list", {}, options);
   entries = data.entries || [];
   render();
 }
@@ -244,12 +289,18 @@ async function saveEntry() {
   btn.textContent = "Đang lưu…";
 
   try {
-    await callApi("add", { entry });
+    await callApi("add", { entry }, {
+      retries: 2,
+      onRetry: (lan, tong) => { btn.textContent = `Mạng chậm, thử lại ${lan}/${tong}…`; }
+    });
     entries.unshift(entry);
     showToast(`Đã lưu ${formatMoney(amount)} đ`);
   } catch (err) {
+    // Đã thử lại vẫn không được thì cất vào hàng chờ, không để mất khoản chi.
     store.queue = [entry, ...store.queue];
-    showToast("Chưa gửi được, đã lưu tạm và sẽ tự gửi lại");
+    showToast(err.pinError
+      ? "PIN đã đổi, anh mở lại sổ nhé"
+      : "Chưa gửi được, đã lưu tạm và sẽ tự gửi lại");
   } finally {
     $("amount").value = "";
     $("note").value = "";
@@ -299,7 +350,7 @@ function init() {
       await flushQueue();
       await loadEntries();
     } catch (err) {
-      showToast(err.message);
+      showToast(friendlyError(err));
     } finally {
       btn.classList.remove("spinning");
     }

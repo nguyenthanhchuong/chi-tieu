@@ -1,11 +1,11 @@
 // Service worker: giữ phần vỏ app trong máy để mở được cả khi mất mạng.
 // Tăng CACHE_VERSION mỗi lần sửa giao diện để máy tải bản mới.
-const CACHE_VERSION = "chi-tieu-v2";
+const CACHE_VERSION = "chi-tieu-v3";
 const SHELL = [
   "./",
   "./index.html",
-  "./style.css?v=2",
-  "./app.js?v=2",
+  "./style.css?v=3",
+  "./app.js?v=3",
   "./manifest.json"
 ];
 
