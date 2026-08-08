@@ -69,14 +69,19 @@ function initGate() {
   const gate = $("gate");
   const input = $("pin-input");
   const error = $("gate-error");
+  const submitBtn = $("pin-submit");
 
-  const tryOpen = async () => {
-    const pin = input.value.trim();
-    if (!pin) { error.textContent = "Anh nhập PIN nhé."; error.hidden = false; return; }
+  // silent = lần thử ngầm bằng mã đã lưu trong máy, không phải người dùng bấm.
+  const openWith = async (pin, silent) => {
+    if (!pin) {
+      error.textContent = "Anh nhập PIN nhé.";
+      error.hidden = false;
+      return;
+    }
 
     error.hidden = true;
-    $("pin-submit").disabled = true;
-    $("pin-submit").textContent = "Đang kiểm tra…";
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Đang kiểm tra…";
 
     store.pin = pin;
     try {
@@ -86,22 +91,34 @@ function initGate() {
       flushQueue();
     } catch (err) {
       store.pin = "";
-      error.textContent = err.message.includes("PIN") ? "PIN không đúng." : err.message;
+      // Dọn sạch ô nhập: nếu để mã cũ nằm lại, mã mới người dùng gõ sẽ bị
+      // nối vào đuôi mã cũ và luôn luôn sai dù gõ đúng.
+      input.value = "";
+      const saiPin = err.message.includes("PIN");
+      if (silent) {
+        error.textContent = saiPin
+          ? "Mã PIN đã đổi, anh nhập mã mới nhé."
+          : err.message;
+      } else {
+        error.textContent = saiPin ? "PIN không đúng." : err.message;
+      }
       error.hidden = false;
+      input.focus();
     } finally {
-      $("pin-submit").disabled = false;
-      $("pin-submit").textContent = "Mở sổ";
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Mở sổ";
     }
   };
 
-  $("pin-submit").addEventListener("click", tryOpen);
-  input.addEventListener("keydown", e => { if (e.key === "Enter") tryOpen(); });
+  const tryOpen = () => openWith(input.value.replace(/\s/g, ""), false);
 
-  // Đã nhập PIN từ lần trước thì vào thẳng
-  if (store.pin) {
-    input.value = store.pin;
-    tryOpen();
-  }
+  submitBtn.addEventListener("click", tryOpen);
+  input.addEventListener("keydown", e => { if (e.key === "Enter") tryOpen(); });
+  // Gõ lại thì ẩn thông báo lỗi cũ đi cho đỡ rối
+  input.addEventListener("input", () => { error.hidden = true; });
+
+  // Có mã lưu sẵn thì thử ngầm, KHÔNG đổ vào ô nhập để tránh dính mã cũ.
+  if (store.pin) openWith(store.pin, true);
 }
 
 // ===== Dựng các nút chọn =====
