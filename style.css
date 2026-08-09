@@ -76,6 +76,19 @@ body {
   margin-bottom: 12px;
 }
 
+.gate-log {
+  margin-top: 12px;
+  padding: 8px 10px;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--muted);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  text-align: left;
+  word-break: break-word;
+}
+
 .gate-foot {
   margin-top: 16px;
   font-size: 11.5px;

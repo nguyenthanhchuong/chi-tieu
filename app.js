@@ -50,7 +50,31 @@ function todayKey() {
 
 // ===== Gọi API =====
 // Tăng mỗi lần sửa app, hiển thị ở màn hình PIN để biết máy đang chạy bản nào.
-const APP_VERSION = "5";
+const APP_VERSION = "6";
+
+// ===== Nhật ký dò lỗi =====
+// Ghi vào localStorage nên còn nguyên kể cả khi trang tự nạp lại — đây là
+// cách duy nhất nhìn thấy chuyện gì xảy ra khi màn hình không báo gì cả.
+function ghiNhatKy(viec) {
+  const d = new Date();
+  const gio = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}:${String(d.getSeconds()).padStart(2, "0")}`;
+  let dong = [];
+  try { dong = JSON.parse(localStorage.getItem("ct_log") || "[]"); } catch { dong = []; }
+  dong.unshift(`${gio} ${viec}`);
+  localStorage.setItem("ct_log", JSON.stringify(dong.slice(0, 6)));
+  hienNhatKy();
+}
+
+function hienNhatKy() {
+  const el = document.getElementById("gate-log");
+  if (!el) return;
+  let dong = [];
+  try { dong = JSON.parse(localStorage.getItem("ct_log") || "[]"); } catch { dong = []; }
+  if (!dong.length) { el.hidden = true; return; }
+  el.textContent = dong.join("\n");
+  el.style.whiteSpace = "pre-line";
+  el.hidden = false;
+}
 
 const RETRY_DELAYS = [700, 1800, 3500]; // giãn dần, tránh dội liên tục vào Google
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -132,15 +156,18 @@ function initGate() {
     submitBtn.textContent = "Đang kiểm tra…";
 
     store.pin = pin;
+    ghiNhatKy(silent ? "thử ngầm mã đã lưu" : `bấm Mở sổ (${pin.length} ký tự)`);
     try {
       await loadEntries({
         retries: 3,
         onRetry: (lan, tong) => {
           submitBtn.textContent = `Mạng chậm, thử lại ${lan}/${tong}…`;
+          ghiNhatKy(`mạng lỗi, thử lại ${lan}/${tong}`);
         }
       });
       gate.hidden = true;
       $("app").hidden = false;
+      ghiNhatKy("MỞ SỔ THÀNH CÔNG");
       flushQueue();
     } catch (err) {
       store.pin = "";
@@ -151,6 +178,7 @@ function initGate() {
         ? "Mã PIN đã đổi, anh nhập mã mới nhé."
         : friendlyError(err);
       error.hidden = false;
+      ghiNhatKy("thất bại: " + String(err && err.message || err).slice(0, 90));
       input.focus();
     } finally {
       submitBtn.disabled = false;
@@ -162,8 +190,9 @@ function initGate() {
 
   submitBtn.addEventListener("click", tryOpen);
   input.addEventListener("keydown", e => { if (e.key === "Enter") tryOpen(); });
-  // Gõ lại thì ẩn thông báo lỗi cũ đi cho đỡ rối
-  input.addEventListener("input", () => { error.hidden = true; });
+  // Chỉ ẩn lỗi khi người dùng thực sự gõ phím. Trước đây bắt sự kiện "input"
+  // nên trình quản lý mật khẩu tự điền cũng làm mất luôn thông báo lỗi.
+  input.addEventListener("keydown", () => { error.hidden = true; });
 
   // Có mã lưu sẵn thì thử ngầm, KHÔNG đổ vào ô nhập để tránh dính mã cũ.
   if (store.pin) openWith(store.pin, true);
@@ -174,6 +203,7 @@ function initGate() {
 function initResetButton() {
   const nhan = $("app-version");
   if (nhan) nhan.textContent = "bản " + APP_VERSION;
+  hienNhatKy();
 
   const btn = $("btn-reset");
   if (!btn) return;
@@ -191,6 +221,7 @@ function initResetButton() {
         await Promise.all(keys.map(k => caches.delete(k)));
       }
       localStorage.removeItem("ct_pin");
+      localStorage.removeItem("ct_log");
     } catch (err) {
       // Dọn được tới đâu hay tới đó, vẫn tải lại để lấy bản mới.
     }
@@ -365,6 +396,9 @@ async function flushQueue() {
 
 // ===== Khởi động =====
 function init() {
+  // Mốc này lộ ra việc trang có tự nạp lại hay không: nếu nhật ký hiện hai
+  // dòng "trang khởi động" liền nhau thì đúng là trang bị nạp lại giữa chừng.
+  ghiNhatKy(`trang khởi động (bản ${APP_VERSION})`);
   renderChips();
 
   // Vừa gõ vừa chấm phân cách nghìn cho dễ đọc
