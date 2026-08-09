@@ -2,9 +2,13 @@
 // URL Apps Script Web App. Deploy lại (New deployment) thì URL đổi, nhớ sửa ở đây.
 const API_URL = "https://script.google.com/macros/s/AKfycby4N8qqK3aiTWNx1wHQPHiafA1AVIAFPYDE-bZd19zsVohu5DjGfkHN2gUjqGr2ADN_GA/exec";
 
-const CATEGORIES = [
+const CATEGORIES_CHI = [
   "Ăn uống", "Chợ/Siêu thị", "Đi lại", "Hoá đơn",
   "Sức khoẻ", "Mua sắm", "Giải trí", "Khác"
+];
+const CATEGORIES_THU = [
+  "Lương", "Thưởng", "Kinh doanh", "Cho thuê",
+  "Được tặng", "Khác"
 ];
 const PAYERS = ["Chương", "Thư"];
 
@@ -18,9 +22,18 @@ const store = {
   set queue(v)   { localStorage.setItem("ct_queue", JSON.stringify(v)); }
 };
 
-let selectedCategory = CATEGORIES[0];
+let selectedKind = "Chi";                    // Chi hoặc Thu
+let selectedCategory = CATEGORIES_CHI[0];
 let selectedPayer = store.payer;
 let entries = [];
+
+// Trạng thái màn hình thống kê
+let statMode = "thang";   // tuan | thang | quy | nam
+let statOffset = 0;       // 0 = kỳ hiện tại, -1 = kỳ trước
+
+function danhMucHienTai() {
+  return selectedKind === "Thu" ? CATEGORIES_THU : CATEGORIES_CHI;
+}
 
 // ===== Tiện ích =====
 const $ = id => document.getElementById(id);
@@ -50,7 +63,7 @@ function todayKey() {
 
 // ===== Gọi API =====
 // Tăng mỗi lần sửa app, hiển thị ở màn hình PIN để biết máy đang chạy bản nào.
-const APP_VERSION = "9";
+const APP_VERSION = "10";
 
 // ===== Nhật ký dò lỗi =====
 // Ghi vào localStorage nên còn nguyên kể cả khi trang tự nạp lại — đây là
@@ -231,9 +244,31 @@ function initResetButton() {
 
 // ===== Dựng các nút chọn =====
 function renderChips() {
+  // Chọn Thu hay Chi
+  const kindBox = $("kinds");
+  kindBox.innerHTML = "";
+  ["Chi", "Thu"].forEach(k => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "chip" + (k === selectedKind ? " on" : "");
+    btn.textContent = k === "Chi" ? "Khoản chi" : "Khoản thu";
+    btn.addEventListener("click", () => {
+      if (selectedKind === k) return;
+      selectedKind = k;
+      // Danh mục hai loại khác nhau nên phải chọn lại mục đầu tiên,
+      // tránh giữ lại danh mục không còn tồn tại trong danh sách mới.
+      selectedCategory = danhMucHienTai()[0];
+      renderChips();
+    });
+    kindBox.appendChild(btn);
+  });
+
+  $("payer-label").textContent = selectedKind === "Thu" ? "Người thu" : "Người chi";
+  $("btn-save").textContent = selectedKind === "Thu" ? "Lưu khoản thu" : "Lưu khoản chi";
+
   const catBox = $("categories");
   catBox.innerHTML = "";
-  CATEGORIES.forEach(cat => {
+  danhMucHienTai().forEach(cat => {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "chip" + (cat === selectedCategory ? " on" : "");
@@ -261,25 +296,34 @@ function renderChips() {
   });
 }
 
+// Hàng cũ trong Sheet chưa có cột Loại nên mặc định là khoản chi.
+function laKhoanThu(e) { return e.type === "Thu"; }
+
+function tatCaKhoan() {
+  const queue = store.queue;
+  return [...queue.map(q => ({ ...q, unsent: true })), ...entries];
+}
+
 // ===== Hiển thị dữ liệu =====
 function render() {
   const month = todayKey();
   const queue = store.queue;
-  const all = [...queue.map(q => ({ ...q, unsent: true })), ...entries];
+  const all = tatCaKhoan();
 
   const inMonth = all.filter(e => String(e.date || "").startsWith(month));
-  const total = inMonth.reduce((s, e) => s + Number(e.amount || 0), 0);
-  $("month-amount").textContent = formatMoney(total) + " đ";
+  const tongChi = inMonth.filter(e => !laKhoanThu(e))
+    .reduce((s, e) => s + Number(e.amount || 0), 0);
+  $("month-amount").textContent = formatMoney(tongChi) + " đ";
 
   const d = new Date();
   $("month-label").textContent = `Chi tháng ${d.getMonth() + 1}/${d.getFullYear()}`;
 
-  // Tổng theo từng người
+  // Tổng chi theo từng người
   const box = $("by-person");
   box.innerHTML = "";
   PAYERS.forEach(p => {
     const sum = inMonth
-      .filter(e => e.payer === p)
+      .filter(e => e.payer === p && !laKhoanThu(e))
       .reduce((s, e) => s + Number(e.amount || 0), 0);
     const card = document.createElement("div");
     card.className = "person-card";
@@ -292,10 +336,11 @@ function render() {
   const list = $("recent-list");
   const recent = all.slice(0, 25);
   if (!recent.length) {
-    list.innerHTML = '<p class="empty">Chưa có khoản chi nào.</p>';
+    list.innerHTML = '<p class="empty">Chưa có khoản nào.</p>';
   } else {
     list.innerHTML = "";
     recent.forEach(e => {
+      const thu = laKhoanThu(e);
       const row = document.createElement("div");
       row.className = "item" + (e.unsent ? " unsent" : "");
       const meta = [e.date, e.payer, e.note].filter(Boolean).join(" · ");
@@ -304,7 +349,7 @@ function render() {
           <div class="item-cat">${e.category || "Khác"}${e.unsent ? " ⏳" : ""}</div>
           <div class="item-meta">${meta}</div>
         </div>
-        <div class="item-amount">${formatMoney(e.amount)} đ</div>`;
+        <div class="item-amount${thu ? " thu" : ""}">${thu ? "+" : ""}${formatMoney(e.amount)} đ</div>`;
       list.appendChild(row);
     });
   }
@@ -316,6 +361,168 @@ function render() {
   } else {
     badge.hidden = true;
   }
+
+  renderStats();
+}
+
+// ===== Thống kê =====
+const STAT_MODES = [
+  { key: "tuan",  ten: "Tuần" },
+  { key: "thang", ten: "Tháng" },
+  { key: "quy",   ten: "Quý" },
+  { key: "nam",   ten: "Năm" }
+];
+
+function ngayKey(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+// Trả về khoảng ngày của kỳ đang xem. offset 0 là kỳ hiện tại, -1 là kỳ trước.
+// Date của JS tự cuộn sang năm khác khi tháng vượt 0..11 nên không cần xử lý riêng.
+function khoangKy(mode, offset) {
+  const now = new Date();
+  let dau, cuoi;
+
+  if (mode === "tuan") {
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const thu = (d.getDay() + 6) % 7;          // quy về thứ Hai = 0
+    d.setDate(d.getDate() - thu + offset * 7);
+    dau = d;
+    cuoi = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 6);
+  } else if (mode === "thang") {
+    dau = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+    cuoi = new Date(dau.getFullYear(), dau.getMonth() + 1, 0);
+  } else if (mode === "quy") {
+    const quyHienTai = Math.floor(now.getMonth() / 3);
+    dau = new Date(now.getFullYear(), (quyHienTai + offset) * 3, 1);
+    cuoi = new Date(dau.getFullYear(), dau.getMonth() + 3, 0);
+  } else {
+    dau = new Date(now.getFullYear() + offset, 0, 1);
+    cuoi = new Date(now.getFullYear() + offset, 11, 31);
+  }
+  return { dau, cuoi };
+}
+
+function nhanKy(mode, dau, cuoi) {
+  const dm = d => `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
+  if (mode === "tuan") return `${dm(dau)} – ${dm(cuoi)}/${cuoi.getFullYear()}`;
+  if (mode === "thang") return `Tháng ${dau.getMonth() + 1}/${dau.getFullYear()}`;
+  if (mode === "quy") return `Quý ${Math.floor(dau.getMonth() / 3) + 1}/${dau.getFullYear()}`;
+  return `Năm ${dau.getFullYear()}`;
+}
+
+function theTongKet(ten, tien, kieu) {
+  return `<div class="stat-card${kieu === "con" ? " wide" : ""}">
+            <div class="stat-name">${ten}</div>
+            <div class="stat-value ${kieu}">${tien}</div>
+          </div>`;
+}
+
+// Vẽ danh sách có thanh tỉ lệ, dùng chung cho phần theo danh mục và theo người.
+function veThanh(container, tieuDe, hang, kieu) {
+  if (!hang.length) {
+    container.innerHTML = `<h3>${tieuDe}</h3><p class="empty">Chưa có số liệu.</p>`;
+    return;
+  }
+  const lonNhat = Math.max(...hang.map(h => h.tien));
+  const tong = hang.reduce((s, h) => s + h.tien, 0);
+
+  container.innerHTML = `<h3>${tieuDe}</h3>` + hang.map(h => {
+    const rong = lonNhat > 0 ? Math.round((h.tien / lonNhat) * 100) : 0;
+    const pct = tong > 0 ? Math.round((h.tien / tong) * 100) : 0;
+    return `<div class="bar-row">
+              <div class="bar-head">
+                <span class="bar-name">${h.ten}</span>
+                <span class="bar-num">${formatMoney(h.tien)} đ<span class="bar-pct">${pct}%</span></span>
+              </div>
+              <div class="bar-track">
+                <div class="bar-fill${kieu === "thu" ? " thu" : ""}" style="width:${rong}%"></div>
+              </div>
+            </div>`;
+  }).join("");
+}
+
+function renderStats() {
+  const modeBox = $("stat-modes");
+  if (!modeBox) return;
+
+  modeBox.innerHTML = "";
+  STAT_MODES.forEach(m => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "chip" + (m.key === statMode ? " on" : "");
+    btn.textContent = m.ten;
+    btn.addEventListener("click", () => {
+      if (statMode === m.key) return;
+      statMode = m.key;
+      statOffset = 0;   // đổi kiểu kỳ thì quay về kỳ hiện tại cho khỏi lạc
+      renderStats();
+    });
+    modeBox.appendChild(btn);
+  });
+
+  const { dau, cuoi } = khoangKy(statMode, statOffset);
+  $("stat-label").textContent = nhanKy(statMode, dau, cuoi);
+  $("stat-next").disabled = statOffset >= 0;   // không cho xem tương lai
+
+  const tuNgay = ngayKey(dau), denNgay = ngayKey(cuoi);
+  const trongKy = tatCaKhoan().filter(e => {
+    const d = String(e.date || "");
+    return d >= tuNgay && d <= denNgay;
+  });
+
+  const khoanThu = trongKy.filter(laKhoanThu);
+  const khoanChi = trongKy.filter(e => !laKhoanThu(e));
+  const tongThu = khoanThu.reduce((s, e) => s + Number(e.amount || 0), 0);
+  const tongChi = khoanChi.reduce((s, e) => s + Number(e.amount || 0), 0);
+  const conLai = tongThu - tongChi;
+
+  $("stat-summary").innerHTML =
+    theTongKet("Thu", formatMoney(tongThu) + " đ", "thu") +
+    theTongKet("Chi", formatMoney(tongChi) + " đ", "chi") +
+    theTongKet("Còn lại", (conLai < 0 ? "−" : "") + formatMoney(Math.abs(conLai)) + " đ",
+               conLai < 0 ? "am con" : "con");
+
+  // Chi theo danh mục, xếp từ lớn xuống nhỏ
+  const theoDanhMuc = {};
+  khoanChi.forEach(e => {
+    const k = e.category || "Khác";
+    theoDanhMuc[k] = (theoDanhMuc[k] || 0) + Number(e.amount || 0);
+  });
+  veThanh($("stat-by-cat"), "Chi theo danh mục",
+    Object.keys(theoDanhMuc)
+      .map(k => ({ ten: k, tien: theoDanhMuc[k] }))
+      .sort((a, b) => b.tien - a.tien), "chi");
+
+  // Chi theo người
+  veThanh($("stat-by-person"), "Chi theo người",
+    PAYERS.map(p => ({
+      ten: p,
+      tien: khoanChi.filter(e => e.payer === p).reduce((s, e) => s + Number(e.amount || 0), 0)
+    })).filter(h => h.tien > 0).sort((a, b) => b.tien - a.tien), "chi");
+}
+
+function initTabs() {
+  const nutNhap = $("tab-btn-nhap");
+  const nutThongKe = $("tab-btn-thongke");
+  if (!nutNhap || !nutThongKe) return;
+
+  const chuyen = sangThongKe => {
+    nutNhap.classList.toggle("on", !sangThongKe);
+    nutThongKe.classList.toggle("on", sangThongKe);
+    $("tab-nhap").hidden = sangThongKe;
+    $("tab-thongke").hidden = !sangThongKe;
+    if (sangThongKe) renderStats();
+    window.scrollTo(0, 0);
+  };
+
+  nutNhap.addEventListener("click", () => chuyen(false));
+  nutThongKe.addEventListener("click", () => chuyen(true));
+
+  $("stat-prev").addEventListener("click", () => { statOffset -= 1; renderStats(); });
+  $("stat-next").addEventListener("click", () => {
+    if (statOffset < 0) { statOffset += 1; renderStats(); }
+  });
 }
 
 async function loadEntries(options = {}) {
@@ -344,10 +551,13 @@ async function saveEntry() {
     amount,
     category: selectedCategory,
     note: $("note").value.trim(),
-    payer: selectedPayer
+    payer: selectedPayer,
+    type: selectedKind
   };
 
+  const nhanLoai = selectedKind === "Thu" ? "khoản thu" : "khoản chi";
   const btn = $("btn-save");
+  const chuNut = btn.textContent;
   btn.disabled = true;
   btn.textContent = "Đang lưu…";
 
@@ -357,9 +567,9 @@ async function saveEntry() {
       onRetry: (lan, tong) => { btn.textContent = `Mạng chậm, thử lại ${lan}/${tong}…`; }
     });
     entries.unshift(entry);
-    showToast(`Đã lưu ${formatMoney(amount)} đ`);
+    showToast(`Đã lưu ${nhanLoai} ${formatMoney(amount)} đ`);
   } catch (err) {
-    // Đã thử lại vẫn không được thì cất vào hàng chờ, không để mất khoản chi.
+    // Đã thử lại vẫn không được thì cất vào hàng chờ, không để mất dữ liệu.
     store.queue = [entry, ...store.queue];
     showToast(err.pinError
       ? "PIN đã đổi, anh mở lại sổ nhé"
@@ -368,7 +578,7 @@ async function saveEntry() {
     $("amount").value = "";
     $("note").value = "";
     btn.disabled = false;
-    btn.textContent = "Lưu khoản chi";
+    btn.textContent = chuNut;   // trả về đúng chữ của loại đang chọn
     render();
   }
 }
@@ -400,6 +610,7 @@ function init() {
   // dòng "trang khởi động" liền nhau thì đúng là trang bị nạp lại giữa chừng.
   ghiNhatKy(`trang khởi động (bản ${APP_VERSION})`);
   renderChips();
+  initTabs();
 
   // Vừa gõ vừa chấm phân cách nghìn cho dễ đọc
   $("amount").addEventListener("input", e => {

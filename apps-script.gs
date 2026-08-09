@@ -20,7 +20,8 @@
 const PIN = "273914";
 
 const SHEET_NAME = "ChiTieu";
-const HEADERS = ["ID", "Ngày", "Số tiền", "Danh mục", "Ghi chú", "Người chi", "Thời điểm ghi"];
+// "Loại" thêm sau nên nằm cuối: hàng cũ để trống ô này và được hiểu là "Chi".
+const HEADERS = ["ID", "Ngày", "Số tiền", "Danh mục", "Ghi chú", "Người chi", "Thời điểm ghi", "Loại"];
 
 function getSheet() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -30,6 +31,17 @@ function getSheet() {
     sheet.appendRow(HEADERS);
     sheet.setFrozenRows(1);
     sheet.getRange(1, 1, 1, HEADERS.length).setFontWeight("bold");
+    return sheet;
+  }
+
+  // Sheet đã có từ trước và thiếu cột mới thì bổ sung tiêu đề còn thiếu,
+  // không đụng tới dữ liệu đang có.
+  const soCot = sheet.getLastColumn();
+  if (soCot < HEADERS.length) {
+    const thieu = HEADERS.slice(soCot);
+    sheet.getRange(1, soCot + 1, 1, thieu.length)
+      .setValues([thieu])
+      .setFontWeight("bold");
   }
   return sheet;
 }
@@ -62,13 +74,16 @@ function doPost(e) {
   }
 }
 
-// Trả về 100 khoản mới nhất, mới nhất lên đầu.
+// Trả về các khoản gần nhất, mới nhất lên đầu.
+// Giới hạn nới rộng vì màn hình thống kê cần dữ liệu cả năm, 100 dòng không đủ.
+const GIOI_HAN = 3000;
+
 function listEntries() {
   const sheet = getSheet();
   const lastRow = sheet.getLastRow();
   if (lastRow < 2) return [];
 
-  const start = Math.max(2, lastRow - 99);
+  const start = Math.max(2, lastRow - GIOI_HAN + 1);
   const rows = sheet.getRange(start, 1, lastRow - start + 1, HEADERS.length).getValues();
 
   return rows.map(function (r) {
@@ -78,7 +93,9 @@ function listEntries() {
       amount: Number(r[2]) || 0,
       category: String(r[3] || ""),
       note: String(r[4] || ""),
-      payer: String(r[5] || "")
+      payer: String(r[5] || ""),
+      // Hàng cũ chưa có cột này, mặc định là khoản chi.
+      type: String(r[7] || "Chi")
     };
   }).reverse();
 }
@@ -106,7 +123,8 @@ function addEntry(entry) {
     entry.category || "",
     entry.note || "",
     entry.payer || "",
-    new Date()
+    new Date(),
+    entry.type === "Thu" ? "Thu" : "Chi"
   ]);
 
   return { ok: true };
