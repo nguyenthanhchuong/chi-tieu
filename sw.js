@@ -6,12 +6,12 @@
 // vĩnh viễn chạy bản cũ, mọi bản sửa đẩy lên đều không tới được người dùng.
 // App này luôn cần mạng để lấy dữ liệu từ Google, nên ưu tiên mạng không làm
 // mất gì, mà lại bảo đảm người dùng luôn chạy bản mới nhất.
-const CACHE_VERSION = "chi-tieu-v7";
+const CACHE_VERSION = "chi-tieu-v8";
 const SHELL = [
   "./",
   "./index.html",
-  "./style.css?v=7",
-  "./app.js?v=7",
+  "./style.css?v=8",
+  "./app.js?v=8",
   "./manifest.json"
 ];
 
