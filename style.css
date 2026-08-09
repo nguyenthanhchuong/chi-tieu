@@ -22,7 +22,9 @@
     --text: #f2e6ea;
     --muted: #b09aa3;
     --line: #372b31;
-    --accent: #c85182;
+    /* Đậm hơn bản sáng một chút: chữ trắng trên nút phải đạt tối thiểu
+       4.5:1. Màu #c85182 nhìn hợp mắt hơn nhưng chỉ được 4.24:1. */
+    --accent: #b84876;
     --accent-soft: #33202a;
     --danger: #ef8a80;
     --toast: #46333c;
