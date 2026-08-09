@@ -24,6 +24,13 @@
 
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 
+/* Bắt buộc: thuộc tính hidden phải luôn thắng.
+   Quy tắc mặc định của trình duyệt là [hidden] { display: none }, nhưng bất kỳ
+   khai báo display nào của mình (vd .gate { display: flex }) đều có độ ưu tiên
+   cao hơn và vô hiệu hoá nó. Từng làm màn hình PIN không chịu tắt dù đã đăng
+   nhập thành công, che kín app chạy bên dưới. */
+[hidden] { display: none !important; }
+
 body {
   background: var(--bg);
   color: var(--text);
