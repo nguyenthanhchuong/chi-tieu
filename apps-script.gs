@@ -17,7 +17,7 @@
  */
 
 // >>> ĐỔI PIN NÀY <<<
-const PIN = "273914";
+const PIN = "200595";
 
 const SHEET_NAME = "ChiTieu";
 // "Loại" thêm sau nên nằm cuối: hàng cũ để trống ô này và được hiểu là "Chi".
