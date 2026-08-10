@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Sổ Chi Tiêu">
-<link rel="stylesheet" href="style.css?v=11">
+<link rel="stylesheet" href="style.css?v=12">
 </head>
 <body>
 
@@ -48,9 +48,10 @@
     <button type="button" class="icon-btn" id="btn-refresh" aria-label="Tải lại">↻</button>
   </header>
 
-  <!-- Chuyển giữa hai màn hình -->
+  <!-- Chuyển giữa các màn hình -->
   <nav class="tabs">
     <button type="button" class="tab on" id="tab-btn-nhap">Nhập</button>
+    <button type="button" class="tab" id="tab-btn-lo">Lọ</button>
     <button type="button" class="tab" id="tab-btn-thongke">Thống kê</button>
   </nav>
 
@@ -94,6 +95,71 @@
     </section>
   </div>
 
+  <!-- ===== Màn hình sáu lọ ===== -->
+  <div id="tab-lo" hidden>
+    <section class="jars">
+      <div class="jar-head">
+        <span class="jar-month" id="jar-month">—</span>
+        <button type="button" class="link-btn" id="btn-tile">Chỉnh tỉ lệ</button>
+      </div>
+
+      <p class="jar-note" id="jar-sweep-note" hidden></p>
+
+      <div id="jar-list"></div>
+
+      <div class="stat-block" id="jar-assets"></div>
+
+      <button type="button" class="btn-outline" id="btn-move">Chuyển tiền giữa các lọ</button>
+
+      <div class="stat-block" id="jar-history"></div>
+    </section>
+  </div>
+
+  <!-- Hộp thoại chuyển tiền giữa các lọ -->
+  <div class="sheet" id="move-sheet" hidden>
+    <div class="sheet-card">
+      <h3 class="sheet-title">Chuyển tiền giữa các lọ</h3>
+
+      <label class="sheet-label" for="move-from">Từ lọ</label>
+      <select class="sheet-select" id="move-from"></select>
+
+      <label class="sheet-label" for="move-to">Sang lọ</label>
+      <select class="sheet-select" id="move-to"></select>
+
+      <label class="sheet-label" for="move-amount">Số tiền</label>
+      <input type="text" class="note-input" id="move-amount" inputmode="numeric" placeholder="0">
+
+      <label class="sheet-label" for="move-note">Ghi chú</label>
+      <input type="text" class="note-input" id="move-note" placeholder="Không bắt buộc">
+
+      <p class="sheet-warn" id="move-warn" hidden></p>
+      <p class="entry-error" id="move-error" hidden></p>
+
+      <div class="sheet-actions">
+        <button type="button" class="btn-ghost" id="move-cancel">Huỷ</button>
+        <button type="button" class="btn-primary" id="move-ok">Chuyển</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hộp thoại chỉnh tỉ lệ -->
+  <div class="sheet" id="ratio-sheet" hidden>
+    <div class="sheet-card">
+      <h3 class="sheet-title">Tỉ lệ chia khoản thu</h3>
+      <p class="sheet-sub">Đổi tỉ lệ chỉ áp dụng cho khoản thu ghi từ giờ trở đi. Các tháng cũ giữ nguyên.</p>
+
+      <div id="ratio-rows"></div>
+
+      <p class="ratio-total" id="ratio-total">—</p>
+      <p class="entry-error" id="ratio-error" hidden></p>
+
+      <div class="sheet-actions">
+        <button type="button" class="btn-ghost" id="ratio-cancel">Huỷ</button>
+        <button type="button" class="btn-primary" id="ratio-ok">Lưu tỉ lệ</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ===== Màn hình thống kê ===== -->
   <div id="tab-thongke" hidden>
     <section class="stats">
@@ -114,7 +180,7 @@
   <div class="toast" id="toast" hidden></div>
 </div>
 
-<script src="logic.js?v=11"></script>
-<script src="app.js?v=11"></script>
+<script src="logic.js?v=12"></script>
+<script src="app.js?v=12"></script>
 </body>
 </html>
