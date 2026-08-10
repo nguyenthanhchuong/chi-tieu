@@ -25,6 +25,192 @@ const Logic = (function () {
     return e && e.type === "Thu";
   }
 
+  // Chuyển tiền giữa hai lọ: tổng tiền trong nhà không đổi.
+  // Phải loại khỏi mọi phép tính Thu/Chi, nếu không báo cáo sẽ phồng lên
+  // cả hai đầu mà nhìn vẫn hợp lý nên rất khó phát hiện.
+  function laChuyenLo(e) {
+    return e && e.type === "Chuyển";
+  }
+
+  function laKhoanChi(e) {
+    return !laKhoanThu(e) && !laChuyenLo(e);
+  }
+
+  // ===== Sáu chiếc lọ =====
+  // congDon: true = tiền để dành, cộng dồn qua các tháng.
+  //          false = tiêu theo tháng, hết tháng phần dư được chuyển đi.
+  // canhBaoRut: lọ mà việc rút ra đi ngược mục đích tiết kiệm.
+  const LOS = [
+    { key: "NEC",  ten: "Thiết yếu",         tiLe: 55, congDon: false },
+    { key: "FFA",  ten: "Tự do tài chính",   tiLe: 10, congDon: true,  canhBaoRut: true },
+    { key: "LTSS", ten: "Tiết kiệm dài hạn", tiLe: 10, congDon: true,  canhBaoRut: true },
+    { key: "EDU",  ten: "Giáo dục",          tiLe: 10, congDon: true },
+    { key: "PLAY", ten: "Hưởng thụ",         tiLe: 10, congDon: false },
+    { key: "GIVE", ten: "Cho đi",            tiLe:  5, congDon: true }
+  ];
+
+  const LO_MAC_DINH_NHAN_DU = "LTSS";   // phần dư cuối tháng dồn về đây
+
+  function timLo(key) {
+    return LOS.find(l => l.key === key) || null;
+  }
+
+  function tiLeMacDinh() {
+    const r = {};
+    LOS.forEach(l => { r[l.key] = l.tiLe; });
+    return r;
+  }
+
+  // Danh mục chi suy ra lọ nào. Người dùng sửa được từng khoản.
+  const LO_THEO_DANH_MUC = {
+    "Ăn uống": "NEC", "Chợ/Siêu thị": "NEC", "Đi lại": "NEC",
+    "Hoá đơn": "NEC", "Sức khoẻ": "NEC", "Đồ dùng gia đình": "NEC",
+    "Giải trí": "PLAY", "Mua sắm": "PLAY",
+    "Học tập": "EDU",
+    "Từ thiện": "GIVE", "Biếu tặng": "GIVE",
+    "Đầu tư": "FFA"
+  };
+
+  function doanLo(danhMuc) {
+    return LO_THEO_DANH_MUC[danhMuc] || "NEC";
+  }
+
+  // Chia khoản thu vào các lọ theo tỉ lệ.
+  // Phần lẻ do làm tròn dồn hết vào lọ lớn nhất để TỔNG LUÔN BẰNG số tiền gốc —
+  // nếu để hụt vài đồng mỗi lần, sau vài trăm giao dịch sổ sẽ lệch không truy được.
+  function phanBo(soTien, tiLe) {
+    const tien = Math.round(Number(soTien) || 0);
+    const ty = tiLe || tiLeMacDinh();
+    const tongTy = LOS.reduce((s, l) => s + (Number(ty[l.key]) || 0), 0);
+    if (tien <= 0 || tongTy <= 0) {
+      const rong = {}; LOS.forEach(l => { rong[l.key] = 0; }); return rong;
+    }
+
+    const kq = {};
+    let daChia = 0;
+    LOS.forEach(l => {
+      const phan = Math.floor(tien * (Number(ty[l.key]) || 0) / tongTy);
+      kq[l.key] = phan;
+      daChia += phan;
+    });
+
+    const loLonNhat = LOS.slice().sort((a, b) =>
+      (Number(ty[b.key]) || 0) - (Number(ty[a.key]) || 0))[0];
+    kq[loLonNhat.key] += tien - daChia;
+    return kq;
+  }
+
+  // Số tiền một khoản thu rót vào một lọ. Ưu tiên bảng phân bổ đã lưu cùng
+  // khoản thu đó: tỉ lệ có thể đổi về sau, nhưng lịch sử phải giữ nguyên.
+  function phanBoCuaKhoanThu(e, tiLeHienTai) {
+    if (e && e.alloc && typeof e.alloc === "object") return e.alloc;
+    return phanBo(e ? e.amount : 0, tiLeHienTai);
+  }
+
+  // Số dư các lọ tính tại thời điểm thangXem ("YYYY-MM").
+  // Lọ cộng dồn: tính từ đầu tới hết tháng đó.
+  // Lọ theo tháng: chỉ tính trong đúng tháng đó.
+  function soDuCacLo(khoan, thangXem, tiLeHienTai) {
+    const ds = khoan || [];
+    const trongThang = e => String(e.date || "").slice(0, 7) === thangXem;
+    const tinhToiNay = e => String(e.date || "").slice(0, 7) <= thangXem;
+
+    const kq = {};
+    LOS.forEach(lo => {
+      const lay = lo.congDon ? tinhToiNay : trongThang;
+      let vao = 0, ra = 0;
+
+      ds.filter(lay).forEach(e => {
+        if (laKhoanThu(e)) {
+          vao += Number(phanBoCuaKhoanThu(e, tiLeHienTai)[lo.key] || 0);
+        } else if (laChuyenLo(e)) {
+          if (e.jarTo === lo.key) vao += Number(e.amount) || 0;
+          if (e.jar === lo.key)   ra  += Number(e.amount) || 0;
+        } else if ((e.jar || doanLo(e.category)) === lo.key) {
+          ra += Number(e.amount) || 0;
+        }
+      });
+
+      kq[lo.key] = { key: lo.key, ten: lo.ten, congDon: lo.congDon, vao, ra, con: vao - ra };
+    });
+    return kq;
+  }
+
+  // Phần dư của các lọ theo tháng ở những tháng ĐÃ QUA mà chưa được chuyển đi.
+  // Bình thường luôn bằng 0 vì app tự chuyển; khác 0 nghĩa là có lệnh chuyển
+  // chưa gửi được, tiền vẫn còn trên sổ chứ không bốc hơi.
+  function duChuaChuyen(khoan, thangHienTai, tiLeHienTai) {
+    const ds = khoan || [];
+    const cacThang = [...new Set(ds.map(e => String(e.date || "").slice(0, 7)))]
+      .filter(t => t && t < thangHienTai)
+      .sort();
+
+    const ra = [];
+    cacThang.forEach(thang => {
+      const soDu = soDuCacLo(ds, thang, tiLeHienTai);
+      LOS.filter(l => !l.congDon).forEach(lo => {
+        const con = soDu[lo.key].con;
+        if (con > 0) ra.push({ thang, lo: lo.key, ten: lo.ten, tien: con });
+      });
+    });
+    return ra;
+  }
+
+  // Mã cố định theo tháng và lọ: mở app bao nhiêu lần cũng chỉ sinh đúng
+  // một lệnh chuyển, vì Apps Script từ chối ghi trùng mã.
+  function maChuyenTuDong(thang, loNguon) {
+    return `auto-${thang}-${loNguon}`;
+  }
+
+  // Dựng các lệnh chuyển tự động cho phần dư tháng trước.
+  function lenhChuyenTuDong(khoan, thangHienTai, tiLeHienTai, loNhan) {
+    const dich = loNhan || LO_MAC_DINH_NHAN_DU;
+    const daCo = new Set((khoan || []).filter(laChuyenLo).map(e => e.id));
+
+    return duChuaChuyen(khoan, thangHienTai, tiLeHienTai)
+      .filter(d => d.lo !== dich)
+      .map(d => ({
+        id: maChuyenTuDong(d.thang, d.lo),
+        date: ngayCuoiThang(d.thang),
+        amount: d.tien,
+        type: "Chuyển",
+        jar: d.lo,
+        jarTo: dich,
+        category: "Chuyển lọ",
+        note: `Tự động dồn dư ${d.ten} tháng ${d.thang}`,
+        payer: ""
+      }))
+      .filter(l => !daCo.has(l.id));
+  }
+
+  function ngayCuoiThang(thang) {
+    const [n, t] = String(thang).split("-").map(Number);
+    return ngayKey(new Date(n, t, 0));
+  }
+
+  // Rút khỏi lọ tiết kiệm đi ngược mục đích của phương pháp sáu lọ:
+  // cho phép nhưng phải cảnh báo rõ.
+  function cankhoCanhBao(loNguon) {
+    const lo = timLo(loNguon);
+    return !!(lo && lo.canhBaoRut);
+  }
+
+  function kiemTraChuyen(loNguon, loDich, soTien, soDu) {
+    if (!loNguon || !loDich) return { duoc: false, loi: "Chọn lọ nguồn và lọ đích nhé." };
+    if (loNguon === loDich)  return { duoc: false, loi: "Hai lọ phải khác nhau." };
+    if (!(Number(soTien) > 0)) return { duoc: false, loi: "Số tiền phải lớn hơn 0." };
+
+    const con = soDu && soDu[loNguon] ? soDu[loNguon].con : 0;
+    const vuot = Number(soTien) > con;
+    return {
+      duoc: true,
+      vuotSoDu: vuot,
+      canhBao: cankhoCanhBao(loNguon)
+        ? `Đây là tiền để dành. Rút khỏi "${timLo(loNguon).ten}" là đi ngược mục tiêu tích luỹ — chỉ nên làm khi thật cần.`
+        : (vuot ? `Lọ "${timLo(loNguon).ten}" chỉ còn ${formatMoney(con)} đ, chuyển đi nhiều hơn sẽ bị âm.` : "")
+    };
+  }
+
   // Khoảng ngày của kỳ đang xem. offset 0 = kỳ hiện tại, -1 = kỳ trước.
   // Tham số now tách ra để test cố định được ngày, không phụ thuộc hôm nay.
   // Date của JS tự cuộn năm khi tháng vượt 0..11 nên không cần xử lý riêng.
@@ -72,7 +258,9 @@ const Logic = (function () {
   function tongHopKy(khoan, tuNgay, denNgay, dsNguoi) {
     const trongKy = (khoan || []).filter(e => trongKhoang(e && e.date, tuNgay, denNgay));
     const khoanThu = trongKy.filter(laKhoanThu);
-    const khoanChi = trongKy.filter(e => !laKhoanThu(e));
+    // Lệnh chuyển lọ KHÔNG phải khoản chi: tiền chỉ đổi chỗ giữa hai lọ.
+    // Tính nhầm vào đây sẽ làm báo cáo phồng lên mà nhìn vẫn hợp lý.
+    const khoanChi = trongKy.filter(laKhoanChi);
 
     const cong = ds => ds.reduce((s, e) => s + (Number(e.amount) || 0), 0);
     const tongThu = cong(khoanThu);
@@ -120,7 +308,12 @@ const Logic = (function () {
   }
 
   return {
-    formatMoney, parseAmount, ngayKey, thangKey, laKhoanThu,
-    khoangKy, nhanKy, trongKhoang, tongHopKy, friendlyError
+    formatMoney, parseAmount, ngayKey, thangKey,
+    laKhoanThu, laChuyenLo, laKhoanChi,
+    khoangKy, nhanKy, trongKhoang, tongHopKy, friendlyError,
+    // Sáu chiếc lọ
+    LOS, LO_MAC_DINH_NHAN_DU, timLo, tiLeMacDinh, doanLo,
+    phanBo, phanBoCuaKhoanThu, soDuCacLo, duChuaChuyen,
+    maChuyenTuDong, lenhChuyenTuDong, ngayCuoiThang, kiemTraChuyen
   };
 })();
