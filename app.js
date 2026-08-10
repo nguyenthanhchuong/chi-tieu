@@ -36,17 +36,12 @@ function danhMucHienTai() {
 }
 
 // ===== Tiện ích =====
+// Phần tính toán nằm trong logic.js để test riêng được (xem test.html).
 const $ = id => document.getElementById(id);
-
-function formatMoney(n) {
-  return new Intl.NumberFormat("vi-VN").format(Math.round(n));
-}
-
-// Lấy số thuần từ chuỗi người dùng gõ ("50.000" -> 50000)
-function parseAmount(text) {
-  const digits = String(text).replace(/[^\d]/g, "");
-  return digits ? parseInt(digits, 10) : 0;
-}
+const formatMoney = Logic.formatMoney;
+const parseAmount = Logic.parseAmount;
+const laKhoanThu = Logic.laKhoanThu;
+const friendlyError = Logic.friendlyError;
 
 function showToast(message) {
   const el = $("toast");
@@ -57,13 +52,12 @@ function showToast(message) {
 }
 
 function todayKey() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  return Logic.thangKey(new Date());
 }
 
 // ===== Gọi API =====
 // Tăng mỗi lần sửa app, hiển thị ở màn hình PIN để biết máy đang chạy bản nào.
-const APP_VERSION = "10";
+const APP_VERSION = "11";
 
 // ===== Nhật ký dò lỗi =====
 // Ghi vào localStorage nên còn nguyên kể cả khi trang tự nạp lại — đây là
@@ -91,22 +85,6 @@ function hienNhatKy() {
 
 const RETRY_DELAYS = [700, 1800, 3500]; // giãn dần, tránh dội liên tục vào Google
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-
-// Đổi lỗi kỹ thuật thành câu người dùng đọc hiểu được.
-function friendlyError(err) {
-  const msg = String((err && err.message) || err || "");
-  if (err && err.pinError) return "PIN không đúng.";
-  if (/Failed to fetch|NetworkError|Load failed|network/i.test(msg)) {
-    return "Không kết nối được, anh kiểm tra mạng giúp nhé.";
-  }
-  if (/\b(4\d\d|5\d\d)\b/.test(msg)) {
-    return "Máy chủ đang bận, anh thử lại sau chút nhé.";
-  }
-  if (/JSON|Unexpected token/i.test(msg)) {
-    return "Máy chủ trả dữ liệu lạ, anh thử lại giúp nhé.";
-  }
-  return "Có trục trặc, anh thử lại giúp nhé.";
-}
 
 // Apps Script chuyển hướng khi trả kết quả nên phải dùng text/plain:
 // tránh preflight CORS, nếu dùng application/json trình duyệt sẽ chặn.
@@ -296,9 +274,6 @@ function renderChips() {
   });
 }
 
-// Hàng cũ trong Sheet chưa có cột Loại nên mặc định là khoản chi.
-function laKhoanThu(e) { return e.type === "Thu"; }
-
 function tatCaKhoan() {
   const queue = store.queue;
   return [...queue.map(q => ({ ...q, unsent: true })), ...entries];
@@ -373,44 +348,6 @@ const STAT_MODES = [
   { key: "nam",   ten: "Năm" }
 ];
 
-function ngayKey(d) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
-// Trả về khoảng ngày của kỳ đang xem. offset 0 là kỳ hiện tại, -1 là kỳ trước.
-// Date của JS tự cuộn sang năm khác khi tháng vượt 0..11 nên không cần xử lý riêng.
-function khoangKy(mode, offset) {
-  const now = new Date();
-  let dau, cuoi;
-
-  if (mode === "tuan") {
-    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const thu = (d.getDay() + 6) % 7;          // quy về thứ Hai = 0
-    d.setDate(d.getDate() - thu + offset * 7);
-    dau = d;
-    cuoi = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 6);
-  } else if (mode === "thang") {
-    dau = new Date(now.getFullYear(), now.getMonth() + offset, 1);
-    cuoi = new Date(dau.getFullYear(), dau.getMonth() + 1, 0);
-  } else if (mode === "quy") {
-    const quyHienTai = Math.floor(now.getMonth() / 3);
-    dau = new Date(now.getFullYear(), (quyHienTai + offset) * 3, 1);
-    cuoi = new Date(dau.getFullYear(), dau.getMonth() + 3, 0);
-  } else {
-    dau = new Date(now.getFullYear() + offset, 0, 1);
-    cuoi = new Date(now.getFullYear() + offset, 11, 31);
-  }
-  return { dau, cuoi };
-}
-
-function nhanKy(mode, dau, cuoi) {
-  const dm = d => `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
-  if (mode === "tuan") return `${dm(dau)} – ${dm(cuoi)}/${cuoi.getFullYear()}`;
-  if (mode === "thang") return `Tháng ${dau.getMonth() + 1}/${dau.getFullYear()}`;
-  if (mode === "quy") return `Quý ${Math.floor(dau.getMonth() / 3) + 1}/${dau.getFullYear()}`;
-  return `Năm ${dau.getFullYear()}`;
-}
-
 function theTongKet(ten, tien, kieu) {
   return `<div class="stat-card${kieu === "con" ? " wide" : ""}">
             <div class="stat-name">${ten}</div>
@@ -461,45 +398,23 @@ function renderStats() {
     modeBox.appendChild(btn);
   });
 
-  const { dau, cuoi } = khoangKy(statMode, statOffset);
-  $("stat-label").textContent = nhanKy(statMode, dau, cuoi);
+  const { dau, cuoi } = Logic.khoangKy(statMode, statOffset);
+  $("stat-label").textContent = Logic.nhanKy(statMode, dau, cuoi);
   $("stat-next").disabled = statOffset >= 0;   // không cho xem tương lai
 
-  const tuNgay = ngayKey(dau), denNgay = ngayKey(cuoi);
-  const trongKy = tatCaKhoan().filter(e => {
-    const d = String(e.date || "");
-    return d >= tuNgay && d <= denNgay;
-  });
-
-  const khoanThu = trongKy.filter(laKhoanThu);
-  const khoanChi = trongKy.filter(e => !laKhoanThu(e));
-  const tongThu = khoanThu.reduce((s, e) => s + Number(e.amount || 0), 0);
-  const tongChi = khoanChi.reduce((s, e) => s + Number(e.amount || 0), 0);
-  const conLai = tongThu - tongChi;
+  const kq = Logic.tongHopKy(
+    tatCaKhoan(), Logic.ngayKey(dau), Logic.ngayKey(cuoi), PAYERS
+  );
 
   $("stat-summary").innerHTML =
-    theTongKet("Thu", formatMoney(tongThu) + " đ", "thu") +
-    theTongKet("Chi", formatMoney(tongChi) + " đ", "chi") +
-    theTongKet("Còn lại", (conLai < 0 ? "−" : "") + formatMoney(Math.abs(conLai)) + " đ",
-               conLai < 0 ? "am con" : "con");
+    theTongKet("Thu", formatMoney(kq.tongThu) + " đ", "thu") +
+    theTongKet("Chi", formatMoney(kq.tongChi) + " đ", "chi") +
+    theTongKet("Còn lại",
+      (kq.conLai < 0 ? "−" : "") + formatMoney(Math.abs(kq.conLai)) + " đ",
+      kq.conLai < 0 ? "am con" : "con");
 
-  // Chi theo danh mục, xếp từ lớn xuống nhỏ
-  const theoDanhMuc = {};
-  khoanChi.forEach(e => {
-    const k = e.category || "Khác";
-    theoDanhMuc[k] = (theoDanhMuc[k] || 0) + Number(e.amount || 0);
-  });
-  veThanh($("stat-by-cat"), "Chi theo danh mục",
-    Object.keys(theoDanhMuc)
-      .map(k => ({ ten: k, tien: theoDanhMuc[k] }))
-      .sort((a, b) => b.tien - a.tien), "chi");
-
-  // Chi theo người
-  veThanh($("stat-by-person"), "Chi theo người",
-    PAYERS.map(p => ({
-      ten: p,
-      tien: khoanChi.filter(e => e.payer === p).reduce((s, e) => s + Number(e.amount || 0), 0)
-    })).filter(h => h.tien > 0).sort((a, b) => b.tien - a.tien), "chi");
+  veThanh($("stat-by-cat"), "Chi theo danh mục", kq.theoDanhMuc, "chi");
+  veThanh($("stat-by-person"), "Chi theo người", kq.theoNguoi, "chi");
 }
 
 function initTabs() {
