@@ -2,9 +2,13 @@
 // URL Apps Script Web App. Deploy lại (New deployment) thì URL đổi, nhớ sửa ở đây.
 const API_URL = "https://script.google.com/macros/s/AKfycby4N8qqK3aiTWNx1wHQPHiafA1AVIAFPYDE-bZd19zsVohu5DjGfkHN2gUjqGr2ADN_GA/exec";
 
+// Mỗi danh mục trỏ đúng một lọ (xem LO_THEO_DANH_MUC trong logic.js).
+// "Mua sắm" cũ bị tách đôi vì nó nhập nhằng: nồi cơm điện là thiết yếu,
+// túi xách là hưởng thụ — để chung thì mặc định sai khoảng nửa số lần.
 const CATEGORIES_CHI = [
-  "Ăn uống", "Chợ/Siêu thị", "Đi lại", "Hoá đơn",
-  "Sức khoẻ", "Mua sắm", "Giải trí", "Khác"
+  "Ăn uống", "Chợ/Siêu thị", "Đi lại", "Hoá đơn", "Sức khoẻ",
+  "Đồ dùng gia đình", "Mua sắm cá nhân", "Giải trí",
+  "Học tập", "Biếu tặng", "Khác"
 ];
 const CATEGORIES_THU = [
   "Lương", "Thưởng", "Kinh doanh", "Cho thuê",
@@ -57,7 +61,7 @@ function todayKey() {
 
 // ===== Gọi API =====
 // Tăng mỗi lần sửa app, hiển thị ở màn hình PIN để biết máy đang chạy bản nào.
-const APP_VERSION = "11";
+const APP_VERSION = "12";
 
 // ===== Nhật ký dò lỗi =====
 // Ghi vào localStorage nên còn nguyên kể cả khi trang tự nạp lại — đây là
@@ -160,6 +164,8 @@ function initGate() {
       $("app").hidden = false;
       ghiNhatKy("MỞ SỔ THÀNH CÔNG");
       flushQueue();
+      // Tỉ lệ lấy từ Sheet để hai máy dùng chung, xong mới dồn dư tháng trước.
+      napCaiDat().then(() => { render(); chayDonDu(); });
     } catch (err) {
       store.pin = "";
       // Dọn sạch ô nhập: nếu để mã cũ nằm lại, mã mới người dùng gõ sẽ bị
@@ -338,6 +344,7 @@ function render() {
   }
 
   renderStats();
+  renderJars();
 }
 
 // ===== Thống kê =====
@@ -417,22 +424,297 @@ function renderStats() {
   veThanh($("stat-by-person"), "Chi theo người", kq.theoNguoi, "chi");
 }
 
-function initTabs() {
-  const nutNhap = $("tab-btn-nhap");
-  const nutThongKe = $("tab-btn-thongke");
-  if (!nutNhap || !nutThongKe) return;
+// ===== Màn hình sáu lọ =====
+// Hai đích chỉ nhận chuyển vào, không tham gia phân bổ: tiền vào đây là
+// tài sản (vàng, sổ tiết kiệm), không còn là tiền mặt trong lọ.
+const DICH_TAI_SAN = [
+  { key: "DAU_TU",    ten: "Đã đầu tư" },
+  { key: "TIET_KIEM", ten: "Đã gửi tiết kiệm" }
+];
 
-  const chuyen = sangThongKe => {
-    nutNhap.classList.toggle("on", !sangThongKe);
-    nutThongKe.classList.toggle("on", sangThongKe);
-    $("tab-nhap").hidden = sangThongKe;
-    $("tab-thongke").hidden = !sangThongKe;
-    if (sangThongKe) renderStats();
+let tiLeLo = Logic.tiLeMacDinh();
+let loNhanDu = Logic.LO_MAC_DINH_NHAN_DU;
+
+function thangHienTai() { return Logic.thangKey(new Date()); }
+
+function tenDich(key) {
+  const ts = DICH_TAI_SAN.find(d => d.key === key);
+  if (ts) return ts.ten;
+  const lo = Logic.timLo(key);
+  return lo ? lo.ten : key;
+}
+
+// Số dư hai đích tài sản: chỉ cộng những gì đã chuyển vào.
+function soDuTaiSan(khoan) {
+  const kq = {};
+  DICH_TAI_SAN.forEach(d => { kq[d.key] = 0; });
+  (khoan || []).filter(Logic.laChuyenLo).forEach(e => {
+    if (kq[e.jarTo] !== undefined) kq[e.jarTo] += Number(e.amount) || 0;
+  });
+  return kq;
+}
+
+function renderJars() {
+  const box = $("jar-list");
+  if (!box) return;
+
+  const thang = thangHienTai();
+  const ds = tatCaKhoan();
+  const soDu = Logic.soDuCacLo(ds, thang, tiLeLo);
+
+  const d = new Date();
+  $("jar-month").textContent = `Tháng ${d.getMonth() + 1}/${d.getFullYear()}`;
+
+  box.innerHTML = Logic.LOS.map(lo => {
+    const s = soDu[lo.key];
+    const tiLeDung = s.vao > 0 ? Math.min(100, Math.round((s.ra / s.vao) * 100)) : 0;
+    const am = s.con < 0;
+    return `
+      <div class="jar">
+        <div class="jar-top">
+          <span class="jar-name">${lo.ten}<span class="jar-tag">${lo.congDon ? "cộng dồn" : "theo tháng"}</span></span>
+          <span class="jar-left${am ? " am" : ""}">${am ? "−" : ""}${formatMoney(Math.abs(s.con))} đ</span>
+        </div>
+        <div class="jar-sub">Vào ${formatMoney(s.vao)} đ · đã dùng ${formatMoney(s.ra)} đ</div>
+        <div class="jar-bar">
+          <div class="jar-fill${am ? " hetsach" : ""}" style="width:${am ? 100 : tiLeDung}%"></div>
+        </div>
+      </div>`;
+  }).join("");
+
+  // Phần đã chuyển thành tài sản
+  const ts = soDuTaiSan(ds);
+  const coTaiSan = DICH_TAI_SAN.some(d2 => ts[d2.key] > 0);
+  $("jar-assets").innerHTML = coTaiSan
+    ? `<h3>Đã chuyển thành tài sản</h3>` + DICH_TAI_SAN
+        .filter(d2 => ts[d2.key] > 0)
+        .map(d2 => `<div class="bar-row"><div class="bar-head">
+              <span class="bar-name">${d2.ten}</span>
+              <span class="bar-num">${formatMoney(ts[d2.key])} đ</span>
+            </div></div>`).join("")
+    : `<h3>Đã chuyển thành tài sản</h3><p class="empty">Chưa có. Khi anh mang tiền đi đầu tư hay gửi tiết kiệm, chuyển vào đây để lọ phản ánh đúng tiền mặt còn lại.</p>`;
+
+  // Lịch sử chuyển lọ
+  const ls = ds.filter(Logic.laChuyenLo).slice(0, 12);
+  $("jar-history").innerHTML = `<h3>Lịch sử chuyển lọ</h3>` + (ls.length
+    ? ls.map(e => `<div class="ca-move bar-row"><div class="bar-head">
+          <span class="bar-name">${tenDich(e.jar)} → ${tenDich(e.jarTo)}</span>
+          <span class="bar-num">${formatMoney(e.amount)} đ</span>
+        </div><div class="item-meta">${[e.date, e.note].filter(Boolean).join(" · ")}</div></div>`).join("")
+    : `<p class="empty">Chưa có lần chuyển nào.</p>`);
+}
+
+// Dồn dư tháng trước: chạy ngầm, ghi lịch sử, không hỏi anh mỗi lần.
+async function chayDonDu() {
+  const lenh = Logic.lenhChuyenTuDong(tatCaKhoan(), thangHienTai(), tiLeLo, loNhanDu);
+  const nhan = $("jar-sweep-note");
+  if (!lenh.length) { if (nhan) nhan.hidden = true; return; }
+
+  try {
+    await callApi("addMany", { entries: lenh });
+    lenh.forEach(l => entries.unshift(l));
+    if (nhan) {
+      nhan.textContent = `Đã tự dồn phần dư tháng trước vào ${tenDich(loNhanDu)}: ` +
+        lenh.map(l => `${tenDich(l.jar)} ${formatMoney(l.amount)} đ`).join(", ") +
+        ". Xem chi tiết ở mục Lịch sử chuyển lọ.";
+      nhan.hidden = false;
+    }
+    render();
+  } catch (err) {
+    if (nhan) {
+      nhan.textContent = "Chưa dồn được phần dư tháng trước (" + friendlyError(err) +
+        "). Tiền vẫn còn nguyên trên sổ, app sẽ thử lại lần mở sau.";
+      nhan.hidden = false;
+    }
+  }
+}
+
+// ----- Hộp thoại chuyển tiền -----
+function moHopChuyen() {
+  const soDu = Logic.soDuCacLo(tatCaKhoan(), thangHienTai(), tiLeLo);
+
+  const nguon = $("move-from"), dich = $("move-to");
+  nguon.innerHTML = Logic.LOS.map(l =>
+    `<option value="${l.key}">${l.ten} — còn ${formatMoney(soDu[l.key].con)} đ</option>`).join("");
+  dich.innerHTML =
+    Logic.LOS.map(l => `<option value="${l.key}">${l.ten}</option>`).join("") +
+    DICH_TAI_SAN.map(d => `<option value="${d.key}">${d.ten}</option>`).join("");
+  dich.value = "LTSS";
+
+  $("move-amount").value = "";
+  $("move-note").value = "";
+  $("move-error").hidden = true;
+  capNhatCanhBaoChuyen();
+  $("move-sheet").hidden = false;
+}
+
+function capNhatCanhBaoChuyen() {
+  const soDu = Logic.soDuCacLo(tatCaKhoan(), thangHienTai(), tiLeLo);
+  const kt = Logic.kiemTraChuyen(
+    $("move-from").value, $("move-to").value,
+    parseAmount($("move-amount").value) || 1, soDu
+  );
+  const el = $("move-warn");
+  if (kt.canhBao) { el.textContent = kt.canhBao; el.hidden = false; }
+  else el.hidden = true;
+}
+
+async function luuChuyenLo() {
+  const soDu = Logic.soDuCacLo(tatCaKhoan(), thangHienTai(), tiLeLo);
+  const nguon = $("move-from").value, dich = $("move-to").value;
+  const tien = parseAmount($("move-amount").value);
+  const kt = Logic.kiemTraChuyen(nguon, dich, tien, soDu);
+
+  const loi = $("move-error");
+  if (!kt.duoc) { loi.textContent = kt.loi; loi.hidden = false; return; }
+  loi.hidden = true;
+
+  const now = new Date();
+  const entry = {
+    id: `mv-${now.getTime()}`,
+    date: Logic.ngayKey(now),
+    amount: tien,
+    type: "Chuyển",
+    jar: nguon,
+    jarTo: dich,
+    category: "Chuyển lọ",
+    note: $("move-note").value.trim(),
+    payer: selectedPayer
+  };
+
+  const btn = $("move-ok");
+  btn.disabled = true;
+  btn.textContent = "Đang chuyển…";
+  try {
+    await callApi("add", { entry }, { retries: 2 });
+    entries.unshift(entry);
+    $("move-sheet").hidden = true;
+    showToast(`Đã chuyển ${formatMoney(tien)} đ sang ${tenDich(dich)}`);
+    render();
+  } catch (err) {
+    loi.textContent = friendlyError(err);
+    loi.hidden = false;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Chuyển";
+  }
+}
+
+// ----- Hộp thoại chỉnh tỉ lệ -----
+function moHopTiLe() {
+  $("ratio-rows").innerHTML = Logic.LOS.map(l => `
+    <div class="ratio-row">
+      <span class="ratio-name">${l.ten}</span>
+      <input type="text" class="ratio-input" data-lo="${l.key}"
+             inputmode="numeric" value="${tiLeLo[l.key]}">
+      <span class="ratio-name" style="flex:none">%</span>
+    </div>`).join("");
+
+  $("ratio-rows").querySelectorAll(".ratio-input")
+    .forEach(i => i.addEventListener("input", capNhatTongTiLe));
+  $("ratio-error").hidden = true;
+  capNhatTongTiLe();
+  $("ratio-sheet").hidden = false;
+}
+
+function docTiLeDangNhap() {
+  const r = {};
+  $("ratio-rows").querySelectorAll(".ratio-input").forEach(i => {
+    r[i.dataset.lo] = parseAmount(i.value);
+  });
+  return r;
+}
+
+function capNhatTongTiLe() {
+  const r = docTiLeDangNhap();
+  const tong = Object.keys(r).reduce((s, k) => s + r[k], 0);
+  const el = $("ratio-total");
+  el.textContent = `Tổng: ${tong}%`;
+  el.className = "ratio-total " + (tong === 100 ? "dung" : "sai");
+}
+
+async function luuTiLe() {
+  const r = docTiLeDangNhap();
+  const tong = Object.keys(r).reduce((s, k) => s + r[k], 0);
+  const loi = $("ratio-error");
+
+  // Tổng khác 100 thì tiền sẽ thiếu hoặc thừa so với khoản thu, phải chặn.
+  if (tong !== 100) {
+    loi.textContent = `Tổng đang là ${tong}%, phải đúng 100% thì tiền mới chia hết.`;
+    loi.hidden = false;
+    return;
+  }
+  loi.hidden = true;
+
+  const btn = $("ratio-ok");
+  btn.disabled = true;
+  btn.textContent = "Đang lưu…";
+  try {
+    await callApi("setSettings", { settings: { tiLe: r, loNhanDu } }, { retries: 2 });
+    tiLeLo = r;
+    $("ratio-sheet").hidden = true;
+    showToast("Đã lưu tỉ lệ mới");
+    render();
+  } catch (err) {
+    loi.textContent = friendlyError(err);
+    loi.hidden = false;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Lưu tỉ lệ";
+  }
+}
+
+async function napCaiDat() {
+  try {
+    const d = await callApi("getSettings", {}, { retries: 1 });
+    const s = d.settings || {};
+    if (s.tiLe && typeof s.tiLe === "object") tiLeLo = s.tiLe;
+    if (s.loNhanDu) loNhanDu = s.loNhanDu;
+  } catch (err) {
+    // Không lấy được thì dùng tỉ lệ mặc định, app vẫn chạy.
+  }
+}
+
+function initJars() {
+  const nut = $("btn-move");
+  if (!nut) return;
+
+  nut.addEventListener("click", moHopChuyen);
+  $("move-cancel").addEventListener("click", () => { $("move-sheet").hidden = true; });
+  $("move-ok").addEventListener("click", luuChuyenLo);
+  $("move-from").addEventListener("change", capNhatCanhBaoChuyen);
+  $("move-to").addEventListener("change", capNhatCanhBaoChuyen);
+  $("move-amount").addEventListener("input", e => {
+    const n = parseAmount(e.target.value);
+    e.target.value = n ? formatMoney(n) : "";
+    capNhatCanhBaoChuyen();
+  });
+
+  $("btn-tile").addEventListener("click", moHopTiLe);
+  $("ratio-cancel").addEventListener("click", () => { $("ratio-sheet").hidden = true; });
+  $("ratio-ok").addEventListener("click", luuTiLe);
+}
+
+function initTabs() {
+  const cacTab = [
+    { nut: "tab-btn-nhap",    khung: "tab-nhap" },
+    { nut: "tab-btn-lo",      khung: "tab-lo" },
+    { nut: "tab-btn-thongke", khung: "tab-thongke" }
+  ];
+  if (!$(cacTab[0].nut)) return;
+
+  const chuyen = key => {
+    cacTab.forEach(t => {
+      const dangChon = t.khung === key;
+      $(t.nut).classList.toggle("on", dangChon);
+      $(t.khung).hidden = !dangChon;
+    });
+    if (key === "tab-lo") renderJars();
+    if (key === "tab-thongke") renderStats();
     window.scrollTo(0, 0);
   };
 
-  nutNhap.addEventListener("click", () => chuyen(false));
-  nutThongKe.addEventListener("click", () => chuyen(true));
+  cacTab.forEach(t => $(t.nut).addEventListener("click", () => chuyen(t.khung)));
 
   $("stat-prev").addEventListener("click", () => { statOffset -= 1; renderStats(); });
   $("stat-next").addEventListener("click", () => {
@@ -467,7 +749,12 @@ async function saveEntry() {
     category: selectedCategory,
     note: $("note").value.trim(),
     payer: selectedPayer,
-    type: selectedKind
+    type: selectedKind,
+    // Khoản chi trừ vào lọ nào (suy từ danh mục).
+    // Khoản thu lưu kèm bảng phân bổ tại thời điểm ghi: tỉ lệ có thể đổi
+    // về sau nhưng lịch sử thì không được đổi theo.
+    jar: selectedKind === "Thu" ? "" : Logic.doanLo(selectedCategory),
+    alloc: selectedKind === "Thu" ? Logic.phanBo(amount, tiLeLo) : null
   };
 
   const nhanLoai = selectedKind === "Thu" ? "khoản thu" : "khoản chi";
@@ -526,6 +813,7 @@ function init() {
   ghiNhatKy(`trang khởi động (bản ${APP_VERSION})`);
   renderChips();
   initTabs();
+  initJars();
 
   // Vừa gõ vừa chấm phân cách nghìn cho dễ đọc
   $("amount").addEventListener("input", e => {

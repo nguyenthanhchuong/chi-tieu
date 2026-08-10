@@ -20,8 +20,16 @@
 const PIN = "200595";
 
 const SHEET_NAME = "ChiTieu";
-// "Loại" thêm sau nên nằm cuối: hàng cũ để trống ô này và được hiểu là "Chi".
-const HEADERS = ["ID", "Ngày", "Số tiền", "Danh mục", "Ghi chú", "Người chi", "Thời điểm ghi", "Loại"];
+const SHEET_CAIDAT = "CaiDat";
+
+// Cột thêm về sau luôn nối vào CUỐI: hàng cũ để trống ô mới và vẫn đọc được.
+//  Loại    : Chi | Thu | Chuyển
+//  Lọ      : khoản chi trừ lọ nào; lệnh chuyển thì đây là lọ nguồn
+//  Lọ đích : chỉ dùng cho lệnh chuyển
+//  Phân bổ : với khoản thu, lưu số tiền đã chia vào từng lọ tại thời điểm ghi.
+//            Phải lưu lại vì tỉ lệ có thể đổi về sau mà lịch sử thì không được đổi.
+const HEADERS = ["ID", "Ngày", "Số tiền", "Danh mục", "Ghi chú", "Người chi",
+                 "Thời điểm ghi", "Loại", "Lọ", "Lọ đích", "Phân bổ"];
 
 function getSheet() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -68,6 +76,25 @@ function doPost(e) {
       return reply(addEntry(body.entry));
     }
 
+    // Nhiều lệnh trong một lần gọi: dùng khi app tự dồn dư nhiều tháng.
+    if (body.action === "addMany") {
+      const ds = body.entries || [];
+      let daGhi = 0;
+      for (let i = 0; i < ds.length; i++) {
+        const r = addEntry(ds[i]);
+        if (r.ok && !r.duplicated) daGhi++;
+      }
+      return reply({ ok: true, daGhi: daGhi, tong: ds.length });
+    }
+
+    if (body.action === "getSettings") {
+      return reply({ ok: true, settings: docCaiDat() });
+    }
+
+    if (body.action === "setSettings") {
+      return reply(ghiCaiDat(body.settings));
+    }
+
     return reply({ ok: false, error: "Không rõ yêu cầu: " + body.action });
   } catch (err) {
     return reply({ ok: false, error: String(err) });
@@ -95,9 +122,25 @@ function listEntries() {
       note: String(r[4] || ""),
       payer: String(r[5] || ""),
       // Hàng cũ chưa có cột này, mặc định là khoản chi.
-      type: String(r[7] || "Chi")
+      type: String(r[7] || "Chi"),
+      jar: String(r[8] || ""),
+      jarTo: String(r[9] || ""),
+      alloc: docPhanBo(r[10])
     };
   }).reverse();
+}
+
+// Bảng phân bổ lưu dạng JSON. Hàng cũ để trống thì trả null, khi đó app tự
+// chia lại theo tỉ lệ hiện tại.
+function docPhanBo(o) {
+  const s = String(o || "").trim();
+  if (!s) return null;
+  try {
+    const v = JSON.parse(s);
+    return (v && typeof v === "object") ? v : null;
+  } catch (err) {
+    return null;
+  }
 }
 
 function addEntry(entry) {
@@ -116,6 +159,8 @@ function addEntry(entry) {
     }
   }
 
+  const loai = (entry.type === "Thu" || entry.type === "Chuyển") ? entry.type : "Chi";
+
   sheet.appendRow([
     entry.id,
     entry.date || "",
@@ -124,10 +169,69 @@ function addEntry(entry) {
     entry.note || "",
     entry.payer || "",
     new Date(),
-    entry.type === "Thu" ? "Thu" : "Chi"
+    loai,
+    entry.jar || "",
+    entry.jarTo || "",
+    entry.alloc ? JSON.stringify(entry.alloc) : ""
   ]);
 
   return { ok: true };
+}
+
+// ===== Cài đặt dùng chung cho mọi thiết bị =====
+// Để trong Sheet chứ không để trong máy, vì hai vợ chồng dùng hai điện thoại
+// khác nhau mà tỉ lệ sáu lọ thì phải giống nhau.
+function getSheetCaiDat() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(SHEET_CAIDAT);
+  if (!sheet) {
+    sheet = ss.insertSheet(SHEET_CAIDAT);
+    sheet.appendRow(["Khoá", "Giá trị"]);
+    sheet.setFrozenRows(1);
+    sheet.getRange(1, 1, 1, 2).setFontWeight("bold");
+  }
+  return sheet;
+}
+
+function docCaiDat() {
+  const sheet = getSheetCaiDat();
+  const lastRow = sheet.getLastRow();
+  const kq = {};
+  if (lastRow < 2) return kq;
+
+  const rows = sheet.getRange(2, 1, lastRow - 1, 2).getValues();
+  rows.forEach(function (r) {
+    const khoa = String(r[0] || "").trim();
+    if (!khoa) return;
+    const tho = String(r[1] || "");
+    try { kq[khoa] = JSON.parse(tho); } catch (err) { kq[khoa] = tho; }
+  });
+  return kq;
+}
+
+function ghiCaiDat(caiDat) {
+  if (!caiDat || typeof caiDat !== "object") {
+    return { ok: false, error: "Thiếu dữ liệu cài đặt" };
+  }
+
+  const sheet = getSheetCaiDat();
+  const lastRow = sheet.getLastRow();
+  const dangCo = {};
+  if (lastRow >= 2) {
+    const rows = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+    rows.forEach(function (r, i) { dangCo[String(r[0] || "").trim()] = i + 2; });
+  }
+
+  Object.keys(caiDat).forEach(function (khoa) {
+    const gt = JSON.stringify(caiDat[khoa]);
+    if (dangCo[khoa]) {
+      sheet.getRange(dangCo[khoa], 2).setValue(gt);
+    } else {
+      sheet.appendRow([khoa, gt]);
+    }
+  });
+
+  return { ok: true, settings: docCaiDat() };
 }
 
 // Sheet trả ô ngày về dưới dạng đối tượng Date. Không dùng "instanceof Date"

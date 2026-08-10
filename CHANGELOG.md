@@ -1,0 +1,100 @@
+# Nhật ký phiên bản — Sổ Chi Tiêu
+
+Số bản hiện lên màn hình PIN (góc dưới) để biết máy đang chạy bản nào.
+
+## Cách quay về bản cũ
+
+```bash
+git log --oneline --decorate    # xem các bản đã đánh dấu
+git revert --no-commit v11..HEAD && git commit -m "Quay về bản v11"
+git push origin master
+```
+
+Sau khi push, đợi khoảng 1 phút rồi mở app kèm đuôi chống đệm để nhận bản mới:
+`https://nguyenthanhchuong.github.io/chi-tieu/?moi=1`
+
+Nếu đã cài app ra màn hình chính thì bấm **Tải lại bản mới** ở cuối màn hình PIN.
+
+> **Lưu ý về Apps Script:** quay lui code web KHÔNG tự quay lui phần chạy trên
+> Google. Nếu bản cần quay về có thay đổi Apps Script, phải vào
+> *Deploy → Manage deployments → Version* chọn lại đúng phiên bản cũ.
+> Bảng dưới ghi rõ bản nào đụng tới Apps Script.
+
+---
+
+## v12 — Sáu chiếc lọ (giao diện)
+*Apps Script: Version 7*
+
+- Màn hình **Lọ**: số dư từng lọ, thanh tiến độ, phần đã đầu tư và đã tiết kiệm
+- Chuyển tiền giữa các lọ, kèm cảnh báo khi rút từ lọ tích luỹ
+- Tự động dồn phần dư cuối tháng vào lọ nhận, có ghi lịch sử
+- Màn hình chỉnh tỉ lệ sáu lọ, chặn khi tổng khác 100%
+- Danh mục mới: Đồ dùng gia đình, Mua sắm cá nhân, Học tập, Biếu tặng
+- Tỉ lệ khởi điểm 50/10/15/10/10/5
+
+## v11 — Tách logic và bổ sung unit test
+*Apps Script: không đổi*
+
+- Tách phần tính toán sang `logic.js`, `app.js` chỉ còn lo giao diện
+- Thêm `test.html`: 88 ca test, mở là tự chạy
+- Trang test luôn nạp code mới nhất, không test nhầm bản trong bộ nhớ đệm
+
+## v10 — Khoản thu và tab Thống kê
+*Apps Script: Version 5-6 (thêm cột "Loại")*
+
+- Ghi được cả khoản thu, không chỉ khoản chi
+- Tab **Thống kê** theo tuần / tháng / quý / năm
+- Thu - Chi - Còn lại, chi theo danh mục và theo người
+- Nới giới hạn đọc từ 100 lên 3.000 dòng để thống kê cả năm đủ số
+
+## v9 — Sửa tương phản chế độ tối
+*Apps Script: không đổi*
+
+- Làm đậm màu hồng ở chế độ tối: chữ trắng trên nút từ 4,24 lên 4,97 (chuẩn tối thiểu 4,5)
+
+## v8 — Giao diện hồng pastel
+*Apps Script: không đổi*
+
+- Đổi toàn bộ tông màu, kèm màu thanh trạng thái điện thoại và icon ngoài màn hình chính
+
+## v7 — Sửa lỗi không mở được sổ
+*Apps Script: không đổi*
+
+- **Lỗi nghiêm trọng:** đăng nhập đúng nhưng màn hình PIN không tắt, che kín app.
+  Do `.gate { display: flex }` đè lên thuộc tính `hidden` của trình duyệt.
+- Thêm luật `[hidden] { display: none !important }` để không tái diễn
+
+## v6 — Nhật ký dò lỗi trên màn hình
+*Apps Script: không đổi*
+
+- Ghi 6 việc gần nhất vào máy, còn nguyên kể cả khi trang tự nạp lại
+- Chỉ ẩn thông báo lỗi khi thực sự gõ phím (trước đây trình quản lý mật khẩu tự điền cũng xoá mất lỗi)
+
+## v5 — Số hiệu bản và nút tự dọn
+*Apps Script: không đổi*
+
+- Hiện số bản trên màn hình PIN
+- Nút **Tải lại bản mới**: tự gỡ service worker và xoá bộ nhớ đệm
+
+## v4 — Sửa service worker
+*Apps Script: không đổi*
+
+- **Lỗi nghiêm trọng:** service worker dùng cache-first nên mọi bản sửa đẩy lên
+  đều không tới được máy người dùng. Đổi sang ưu tiên mạng.
+
+## v3 — Thông báo lỗi dễ hiểu và tự thử lại
+*Apps Script: không đổi*
+
+- Lỗi mạng tự thử lại 3 lần rồi mới báo; sai PIN báo ngay
+- Không để lọt mã lỗi kỹ thuật ra màn hình
+
+## v2 — Sửa lỗi dính mã PIN cũ
+*Apps Script: không đổi*
+
+- Mã cũ còn nằm trong ô nhập làm mã mới bị nối vào đuôi, gõ đúng vẫn báo sai
+
+## v1 — Bản đầu
+*Apps Script: Version 1-4*
+
+- PWA ghi chi tiêu, dữ liệu về Google Sheet, khoá bằng mã PIN
+- Chạy được trên điện thoại, máy tính và web từ cùng một bộ code

@@ -65,7 +65,7 @@ const Logic = (function () {
   const LO_THEO_DANH_MUC = {
     "Ăn uống": "NEC", "Chợ/Siêu thị": "NEC", "Đi lại": "NEC",
     "Hoá đơn": "NEC", "Sức khoẻ": "NEC", "Đồ dùng gia đình": "NEC",
-    "Giải trí": "PLAY", "Mua sắm": "PLAY",
+    "Giải trí": "PLAY", "Mua sắm cá nhân": "PLAY", "Mua sắm": "PLAY",
     "Học tập": "EDU",
     "Từ thiện": "GIVE", "Biếu tặng": "GIVE",
     "Đầu tư": "FFA"
