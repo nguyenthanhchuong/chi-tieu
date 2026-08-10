@@ -283,6 +283,200 @@ test("số tiền dạng chuỗi vẫn cộng đúng", () => {
 });
 
 // ===================================================================
+nhom("Sáu lọ — chia khoản thu");
+
+test("chia đúng tỉ lệ chuẩn", () => {
+  const r = Logic.phanBo(20000000, Logic.tiLeMacDinh());
+  bang([r.NEC, r.FFA, r.LTSS, r.EDU, r.PLAY, r.GIVE],
+       [11000000, 2000000, 2000000, 2000000, 2000000, 1000000]);
+});
+
+test("TỔNG CÁC LỌ LUÔN BẰNG SỐ TIỀN GỐC (số lẻ)", () => {
+  const tien = 12345679;
+  const r = Logic.phanBo(tien, Logic.tiLeMacDinh());
+  const tong = Object.keys(r).reduce((s, k) => s + r[k], 0);
+  bang(tong, tien, "phần lẻ bị rơi mất");
+});
+
+test("tổng vẫn khớp với tỉ lệ tự đặt", () => {
+  const ty = { NEC: 60, FFA: 5, LTSS: 15, EDU: 5, PLAY: 10, GIVE: 5 };
+  const tien = 7777777;
+  const r = Logic.phanBo(tien, ty);
+  bang(Object.keys(r).reduce((s, k) => s + r[k], 0), tien);
+});
+
+test("tiền 0 thì mọi lọ đều 0", () => {
+  const r = Logic.phanBo(0, Logic.tiLeMacDinh());
+  bang(r.NEC, 0);
+});
+
+test("bảng phân bổ đã lưu được ưu tiên hơn tỉ lệ hiện tại", () => {
+  const khoanThu = { amount: 1000000, type: "Thu", alloc: { NEC: 1000000, FFA: 0, LTSS: 0, EDU: 0, PLAY: 0, GIVE: 0 } };
+  const r = Logic.phanBoCuaKhoanThu(khoanThu, Logic.tiLeMacDinh());
+  bang(r.NEC, 1000000, "đổi tỉ lệ không được làm sai lịch sử");
+});
+
+// ===================================================================
+nhom("Sáu lọ — đoán lọ từ danh mục");
+
+test("Ăn uống vào Thiết yếu", () => bang(Logic.doanLo("Ăn uống"), "NEC"));
+test("Giải trí vào Hưởng thụ", () => bang(Logic.doanLo("Giải trí"), "PLAY"));
+test("Học tập vào Giáo dục", () => bang(Logic.doanLo("Học tập"), "EDU"));
+test("Từ thiện vào Cho đi", () => bang(Logic.doanLo("Từ thiện"), "GIVE"));
+test("danh mục lạ rơi vào Thiết yếu", () => bang(Logic.doanLo("Linh tinh"), "NEC"));
+
+// ===================================================================
+nhom("Sáu lọ — số dư");
+
+const TY = Logic.tiLeMacDinh();
+const SO = [
+  { id: "t1", date: "2026-08-01", amount: 20000000, type: "Thu", category: "Lương" },
+  { id: "c1", date: "2026-08-05", amount: 3000000, type: "Chi", jar: "NEC", category: "Chợ/Siêu thị" },
+  { id: "c2", date: "2026-08-06", amount:  500000, type: "Chi", jar: "PLAY", category: "Giải trí" }
+];
+
+test("lọ nhận tiền từ khoản thu", () => {
+  bang(Logic.soDuCacLo(SO, "2026-08", TY).NEC.vao, 11000000);
+});
+test("khoản chi trừ đúng lọ", () => {
+  const r = Logic.soDuCacLo(SO, "2026-08", TY);
+  bang([r.NEC.con, r.PLAY.con], [8000000, 1500000]);
+});
+test("lọ không liên quan giữ nguyên", () => {
+  bang(Logic.soDuCacLo(SO, "2026-08", TY).GIVE.con, 1000000);
+});
+
+test("khoản chi thiếu cột lọ thì suy từ danh mục", () => {
+  const ds = [{ id: "x", date: "2026-08-05", amount: 100000, type: "Chi", category: "Giải trí" }];
+  bang(Logic.soDuCacLo(ds, "2026-08", TY).PLAY.ra, 100000);
+});
+
+test("LỌ CỘNG DỒN giữ tiền qua tháng", () => {
+  const ds = [{ id: "t", date: "2026-07-01", amount: 10000000, type: "Thu" }];
+  bang(Logic.soDuCacLo(ds, "2026-08", TY).LTSS.con, 1000000, "tiền tiết kiệm tháng 7 phải còn ở tháng 8");
+});
+
+test("LỌ THEO THÁNG không mang tiền tháng trước sang", () => {
+  const ds = [{ id: "t", date: "2026-07-01", amount: 10000000, type: "Thu" }];
+  bang(Logic.soDuCacLo(ds, "2026-08", TY).NEC.con, 0, "lọ Thiết yếu phải bắt đầu lại mỗi tháng");
+});
+
+// ===================================================================
+nhom("Sáu lọ — chuyển tiền giữa các lọ");
+
+const CHUYEN = SO.concat([
+  { id: "m1", date: "2026-08-20", amount: 1000000, type: "Chuyển", jar: "NEC", jarTo: "LTSS" }
+]);
+
+test("lọ nguồn bị trừ", () => {
+  bang(Logic.soDuCacLo(CHUYEN, "2026-08", TY).NEC.con, 7000000);
+});
+test("lọ đích được cộng", () => {
+  bang(Logic.soDuCacLo(CHUYEN, "2026-08", TY).LTSS.con, 3000000);
+});
+test("tổng tiền toàn bộ các lọ KHÔNG đổi sau khi chuyển", () => {
+  const truoc = Logic.soDuCacLo(SO, "2026-08", TY);
+  const sau = Logic.soDuCacLo(CHUYEN, "2026-08", TY);
+  const cong = r => Object.keys(r).reduce((s, k) => s + r[k].con, 0);
+  bang(cong(sau), cong(truoc), "chuyển lọ không được làm sinh ra hay mất tiền");
+});
+
+test("CHUYỂN LỌ KHÔNG BỊ TÍNH LÀ KHOẢN CHI", () => {
+  const r = Logic.tongHopKy(CHUYEN, "2026-08-01", "2026-08-31", ["Chương"]);
+  bang(r.tongChi, 3500000, "lệnh chuyển bị cộng nhầm vào tổng chi");
+});
+test("chuyển lọ cũng không bị tính là khoản thu", () => {
+  const r = Logic.tongHopKy(CHUYEN, "2026-08-01", "2026-08-31", ["Chương"]);
+  bang(r.tongThu, 20000000);
+});
+test("chuyển lọ không hiện trong bảng chi theo danh mục", () => {
+  const r = Logic.tongHopKy(CHUYEN, "2026-08-01", "2026-08-31", ["Chương"]);
+  bang(r.theoDanhMuc.some(d => d.ten === "Chuyển lọ"), false);
+});
+
+// ===================================================================
+nhom("Sáu lọ — tự động dồn dư cuối tháng");
+
+const THANG_TRUOC = [
+  { id: "t7", date: "2026-07-01", amount: 20000000, type: "Thu" },
+  { id: "c7", date: "2026-07-10", amount: 10000000, type: "Chi", jar: "NEC", category: "Chợ/Siêu thị" }
+];
+
+test("phát hiện phần dư tháng đã qua", () => {
+  const du = Logic.duChuaChuyen(THANG_TRUOC, "2026-08", TY);
+  const nec = du.find(d => d.lo === "NEC");
+  bang(nec.tien, 1000000);
+});
+
+test("tạo lệnh chuyển đúng số tiền và đúng lọ đích", () => {
+  const ls = Logic.lenhChuyenTuDong(THANG_TRUOC, "2026-08", TY, "LTSS");
+  const nec = ls.find(l => l.jar === "NEC");
+  bang([nec.amount, nec.jarTo, nec.type, nec.date],
+       [1000000, "LTSS", "Chuyển", "2026-07-31"]);
+});
+
+test("CHẠY LẠI KHÔNG TẠO LỆNH TRÙNG", () => {
+  const lan1 = Logic.lenhChuyenTuDong(THANG_TRUOC, "2026-08", TY, "LTSS");
+  const sauKhiGhi = THANG_TRUOC.concat(lan1);
+  const lan2 = Logic.lenhChuyenTuDong(sauKhiGhi, "2026-08", TY, "LTSS");
+  bang(lan2.length, 0, "mở app nhiều lần sẽ ghi trùng lệnh chuyển");
+});
+
+test("mã lệnh chuyển cố định theo tháng và lọ", () => {
+  bang(Logic.maChuyenTuDong("2026-07", "NEC"), "auto-2026-07-NEC");
+});
+
+test("không tạo lệnh chuyển cho lọ cộng dồn", () => {
+  const ls = Logic.lenhChuyenTuDong(THANG_TRUOC, "2026-08", TY, "LTSS");
+  bang(ls.some(l => l.jar === "LTSS" || l.jar === "FFA"), false);
+});
+
+test("tháng hiện tại chưa xong thì chưa dồn dư", () => {
+  const ls = Logic.lenhChuyenTuDong(THANG_TRUOC, "2026-07", TY, "LTSS");
+  bang(ls.length, 0, "không được dồn dư khi tháng còn đang chạy");
+});
+
+test("lọ tiêu hết sạch thì không sinh lệnh chuyển", () => {
+  const ds = [
+    { id: "a", date: "2026-07-01", amount: 20000000, type: "Thu" },
+    { id: "b", date: "2026-07-10", amount: 11000000, type: "Chi", jar: "NEC", category: "Chợ/Siêu thị" },
+    { id: "c", date: "2026-07-11", amount: 2000000, type: "Chi", jar: "PLAY", category: "Giải trí" }
+  ];
+  bang(Logic.lenhChuyenTuDong(ds, "2026-08", TY, "LTSS").length, 0);
+});
+
+test("ngày cuối tháng đúng cả tháng 2 năm nhuận", () => {
+  bang([Logic.ngayCuoiThang("2026-02"), Logic.ngayCuoiThang("2028-02")],
+       ["2026-02-28", "2028-02-29"]);
+});
+
+// ===================================================================
+nhom("Sáu lọ — kiểm tra trước khi chuyển");
+
+const SODU = Logic.soDuCacLo(SO, "2026-08", TY);
+
+test("chặn khi hai lọ trùng nhau", () => {
+  bang(Logic.kiemTraChuyen("NEC", "NEC", 1000, SODU).duoc, false);
+});
+test("chặn khi số tiền bằng 0", () => {
+  bang(Logic.kiemTraChuyen("NEC", "LTSS", 0, SODU).duoc, false);
+});
+test("CẢNH BÁO khi rút khỏi lọ tiết kiệm dài hạn", () => {
+  const r = Logic.kiemTraChuyen("LTSS", "NEC", 100000, SODU);
+  bang([r.duoc, r.canhBao.length > 0], [true, true], "phải cho chuyển nhưng có cảnh báo");
+});
+test("cảnh báo cả lọ tự do tài chính", () => {
+  bang(Logic.kiemTraChuyen("FFA", "NEC", 100000, SODU).canhBao.length > 0, true);
+});
+test("chuyển từ lọ tiêu dùng thì không cảnh báo nặng", () => {
+  bang(Logic.kiemTraChuyen("PLAY", "LTSS", 100000, SODU).canhBao, "");
+});
+test("báo khi chuyển quá số dư", () => {
+  const r = Logic.kiemTraChuyen("PLAY", "LTSS", 99000000, SODU);
+  bang([r.duoc, r.vuotSoDu], [true, true]);
+});
+
+// ===================================================================
 nhom("Thông báo lỗi cho người dùng");
 
 test("mất mạng", () => {
