@@ -22,6 +22,16 @@ Nếu đã cài app ra màn hình chính thì bấm **Tải lại bản mới** 
 
 ---
 
+## v13 — Xem chi tiết lọ và thống kê nguồn thu
+*Apps Script: không đổi*
+
+- Bấm vào một lọ để xem mọi khoản đã tác động lên lọ đó: tiền chia từ khoản
+  thu, các khoản chi, tiền chuyển vào và chuyển đi
+- Danh sách chi tiết cộng lại đúng bằng số dư đang hiện (có ca test canh)
+- Thống kê thêm mục **Thu theo nguồn** (Lương, Thưởng, Kinh doanh...)
+- Bổ sung số liệu thu theo người
+- Số ca test: 88 → 102
+
 ## v12 — Sáu chiếc lọ (giao diện)
 *Apps Script: Version 7*
 

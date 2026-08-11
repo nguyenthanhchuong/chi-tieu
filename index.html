@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Sổ Chi Tiêu">
-<link rel="stylesheet" href="style.css?v=12">
+<link rel="stylesheet" href="style.css?v=13">
 </head>
 <body>
 
@@ -142,6 +142,18 @@
     </div>
   </div>
 
+  <!-- Hộp thoại chi tiết một lọ -->
+  <div class="sheet" id="jar-sheet" hidden>
+    <div class="sheet-card">
+      <h3 class="sheet-title" id="jar-detail-name">—</h3>
+      <p class="sheet-sub" id="jar-detail-sum">—</p>
+      <div id="jar-detail-list"></div>
+      <div class="sheet-actions">
+        <button type="button" class="btn-ghost" id="jar-detail-close">Đóng</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Hộp thoại chỉnh tỉ lệ -->
   <div class="sheet" id="ratio-sheet" hidden>
     <div class="sheet-card">
@@ -172,6 +184,7 @@
       </div>
 
       <div class="stat-summary" id="stat-summary"></div>
+      <div class="stat-block" id="stat-by-income"></div>
       <div class="stat-block" id="stat-by-cat"></div>
       <div class="stat-block" id="stat-by-person"></div>
     </section>
@@ -180,7 +193,7 @@
   <div class="toast" id="toast" hidden></div>
 </div>
 
-<script src="logic.js?v=12"></script>
-<script src="app.js?v=12"></script>
+<script src="logic.js?v=13"></script>
+<script src="app.js?v=13"></script>
 </body>
 </html>

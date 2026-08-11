@@ -136,6 +136,47 @@ const Logic = (function () {
     return kq;
   }
 
+  // Liệt kê mọi khoản đã tác động lên một lọ, mới nhất lên đầu.
+  // Dùng đúng bộ lọc thời gian như soDuCacLo, nhờ vậy cộng lại luôn ra
+  // đúng số dư đang hiện — nếu lệch thì người dùng không hiểu số ở đâu ra.
+  function chiTietLo(khoan, loKey, thangXem, tiLeHienTai) {
+    const lo = timLo(loKey);
+    if (!lo) return [];
+
+    const trongThang = e => String(e.date || "").slice(0, 7) === thangXem;
+    const tinhToiNay = e => String(e.date || "").slice(0, 7) <= thangXem;
+    const lay = lo.congDon ? tinhToiNay : trongThang;
+
+    const ra = [];
+    (khoan || []).filter(lay).forEach(e => {
+      if (laKhoanThu(e)) {
+        const phan = Number(phanBoCuaKhoanThu(e, tiLeHienTai)[loKey] || 0);
+        if (phan > 0) {
+          ra.push({
+            date: e.date, tien: phan, chieu: "vao",
+            moTa: "Chia từ khoản thu" + (e.category ? " · " + e.category : ""),
+            note: e.note || ""
+          });
+        }
+      } else if (laChuyenLo(e)) {
+        if (e.jarTo === loKey) {
+          ra.push({ date: e.date, tien: Number(e.amount) || 0, chieu: "vao",
+                    moTa: "Chuyển vào", note: e.note || "" });
+        }
+        if (e.jar === loKey) {
+          ra.push({ date: e.date, tien: Number(e.amount) || 0, chieu: "ra",
+                    moTa: "Chuyển đi", note: e.note || "" });
+        }
+      } else if ((e.jar || doanLo(e.category)) === loKey) {
+        ra.push({ date: e.date, tien: Number(e.amount) || 0, chieu: "ra",
+                  moTa: e.category || "Khác",
+                  note: [e.payer, e.note].filter(Boolean).join(" · ") });
+      }
+    });
+
+    return ra.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+  }
+
   // Phần dư của các lọ theo tháng ở những tháng ĐÃ QUA mà chưa được chuyển đi.
   // Bình thường luôn bằng 0 vì app tự chuyển; khác 0 nghĩa là có lệnh chuyển
   // chưa gửi được, tiền vẫn còn trên sổ chứ không bốc hơi.
@@ -272,6 +313,21 @@ const Logic = (function () {
       gomDanhMuc[k] = (gomDanhMuc[k] || 0) + (Number(e.amount) || 0);
     });
 
+    // Nguồn thu: gom khoản thu theo danh mục (Lương, Thưởng, Kinh doanh...)
+    const gomNguonThu = {};
+    khoanThu.forEach(e => {
+      const k = (e && e.category) || "Khác";
+      gomNguonThu[k] = (gomNguonThu[k] || 0) + (Number(e.amount) || 0);
+    });
+    const theoNguonThu = Object.keys(gomNguonThu)
+      .map(k => ({ ten: k, tien: gomNguonThu[k] }))
+      .sort((a, b) => b.tien - a.tien);
+
+    const theoNguoiThu = (dsNguoi || [])
+      .map(p => ({ ten: p, tien: cong(khoanThu.filter(e => e && e.payer === p)) }))
+      .filter(h => h.tien > 0)
+      .sort((a, b) => b.tien - a.tien);
+
     const theoDanhMuc = Object.keys(gomDanhMuc)
       .map(k => ({ ten: k, tien: gomDanhMuc[k] }))
       .sort((a, b) => b.tien - a.tien);
@@ -287,7 +343,9 @@ const Logic = (function () {
       tongChi,
       conLai: tongThu - tongChi,
       theoDanhMuc,
-      theoNguoi
+      theoNguoi,
+      theoNguonThu,
+      theoNguoiThu
     };
   }
 
@@ -313,7 +371,7 @@ const Logic = (function () {
     khoangKy, nhanKy, trongKhoang, tongHopKy, friendlyError,
     // Sáu chiếc lọ
     LOS, LO_MAC_DINH_NHAN_DU, timLo, tiLeMacDinh, doanLo,
-    phanBo, phanBoCuaKhoanThu, soDuCacLo, duChuaChuyen,
+    phanBo, phanBoCuaKhoanThu, soDuCacLo, chiTietLo, duChuaChuyen,
     maChuyenTuDong, lenhChuyenTuDong, ngayCuoiThang, kiemTraChuyen
   };
 })();
