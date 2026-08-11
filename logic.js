@@ -177,6 +177,64 @@ const Logic = (function () {
     return ra.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
   }
 
+  // Rút gọn số tiền cho nhãn biểu đồ: 15.000.000 -> "15tr", 500.000 -> "500k".
+  // Trục biểu đồ hẹp, ghi đủ số sẽ chồng chữ lên nhau.
+  function formatNgan(n) {
+    const t = Math.round(Number(n) || 0);
+    if (Math.abs(t) >= 1000000) {
+      const tr = t / 1000000;
+      return (Math.abs(tr) >= 10 ? Math.round(tr) : Math.round(tr * 10) / 10) + "tr";
+    }
+    if (Math.abs(t) >= 1000) return Math.round(t / 1000) + "k";
+    return String(t);
+  }
+
+  // Dãy tháng liên tiếp kết thúc ở denThang. Tự cuộn qua năm.
+  function chuoiThang(denThang, soThang) {
+    const [n, t] = String(denThang).split("-").map(Number);
+    const ra = [];
+    for (let i = soThang - 1; i >= 0; i--) {
+      const d = new Date(n, t - 1 - i, 1);
+      ra.push(thangKey(d));
+    }
+    return ra;
+  }
+
+  // Thu / chi / còn lại của từng tháng. Tháng không có khoản nào vẫn xuất
+  // hiện với giá trị 0 để biểu đồ không bị đứt quãng.
+  function dienBienTheoThang(khoan, denThang, soThang) {
+    const ds = khoan || [];
+    return chuoiThang(denThang, soThang).map(thang => {
+      const trong = ds.filter(e => String(e.date || "").slice(0, 7) === thang);
+      const cong = list => list.reduce((s, e) => s + (Number(e.amount) || 0), 0);
+      const thu = cong(trong.filter(laKhoanThu));
+      const chi = cong(trong.filter(laKhoanChi));
+      return { thang, thu, chi, conLai: thu - chi };
+    });
+  }
+
+  // Diễn biến theo tháng của riêng một mục (một danh mục chi, một nguồn thu,
+  // hoặc một người).
+  function dienBienMuc(khoan, denThang, soThang, loai, giaTri) {
+    const ds = khoan || [];
+    const nhan = e => (e && e.category) || "Khác";
+
+    return chuoiThang(denThang, soThang).map(thang => {
+      const trong = ds.filter(e => String(e.date || "").slice(0, 7) === thang);
+      let loc;
+      if (loai === "nguonThu") {
+        loc = trong.filter(e => laKhoanThu(e) && nhan(e) === giaTri);
+      } else if (loai === "danhMucChi") {
+        loc = trong.filter(e => laKhoanChi(e) && nhan(e) === giaTri);
+      } else if (loai === "nguoiChi") {
+        loc = trong.filter(e => laKhoanChi(e) && e && e.payer === giaTri);
+      } else {
+        loc = [];
+      }
+      return { thang, tien: loc.reduce((s, e) => s + (Number(e.amount) || 0), 0) };
+    });
+  }
+
   // Liệt kê các khoản đứng sau một dòng trong bảng thống kê.
   // loai: "nguonThu" | "danhMucChi" | "nguoiChi"
   // Cộng lại phải bằng đúng con số trên thanh, nếu không người dùng bấm vào
@@ -397,7 +455,8 @@ const Logic = (function () {
   }
 
   return {
-    formatMoney, parseAmount, ngayKey, thangKey,
+    formatMoney, formatNgan, parseAmount, ngayKey, thangKey,
+    chuoiThang, dienBienTheoThang, dienBienMuc,
     laKhoanThu, laChuyenLo, laKhoanChi,
     khoangKy, nhanKy, trongKhoang, tongHopKy, friendlyError,
     // Sáu chiếc lọ

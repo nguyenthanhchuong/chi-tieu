@@ -61,7 +61,7 @@ function todayKey() {
 
 // ===== Gọi API =====
 // Tăng mỗi lần sửa app, hiển thị ở màn hình PIN để biết máy đang chạy bản nào.
-const APP_VERSION = "15";
+const APP_VERSION = "16";
 
 // ===== Nhật ký dò lỗi =====
 // Ghi vào localStorage nên còn nguyên kể cả khi trang tự nạp lại — đây là
@@ -396,6 +396,147 @@ function veThanh(container, tieuDe, hang, kieu, loaiChiTiet) {
   }
 }
 
+// ===== Biểu đồ diễn biến theo tháng =====
+// Vẽ bằng SVG viết tay, không kéo thư viện ngoài: app phải mở được cả khi
+// mất mạng, mà thư viện tải từ CDN thì hỏng đúng lúc đó.
+const CHART_SO_THANG = 6;
+const MAU_THU = "#1f8a4c";
+const MAU_CHI = "#bf4574";
+
+let chartKieu = "cot";        // cot | duong
+let chartChuoi = "thuchi";    // thuchi | danhMucChi:Ăn uống | nguonThu:Lương ...
+
+function nhanThangNgan(thang) {
+  const [n, t] = String(thang).split("-");
+  return `T${Number(t)}`;
+}
+
+// Trả về các chuỗi số liệu cần vẽ, tuỳ lựa chọn của người dùng.
+function layDuLieuBieuDo() {
+  const denThang = thangHienTai();
+  const ds = tatCaKhoan();
+
+  if (chartChuoi === "thuchi") {
+    const d = Logic.dienBienTheoThang(ds, denThang, CHART_SO_THANG);
+    return {
+      thangs: d.map(x => x.thang),
+      chuoi: [
+        { ten: "Thu", mau: MAU_THU, giaTri: d.map(x => x.thu) },
+        { ten: "Chi", mau: MAU_CHI, giaTri: d.map(x => x.chi) }
+      ]
+    };
+  }
+
+  const [loai, giaTri] = chartChuoi.split(":");
+  const d = Logic.dienBienMuc(ds, denThang, CHART_SO_THANG, loai, giaTri);
+  return {
+    thangs: d.map(x => x.thang),
+    chuoi: [{
+      ten: giaTri,
+      mau: loai === "nguonThu" ? MAU_THU : MAU_CHI,
+      giaTri: d.map(x => x.tien)
+    }]
+  };
+}
+
+function veBieuDo() {
+  const khung = $("chart-area");
+  if (!khung) return;
+
+  const { thangs, chuoi } = layDuLieuBieuDo();
+  const tatCaSo = chuoi.reduce((a, c) => a.concat(c.giaTri), []);
+  const dinh = Math.max(...tatCaSo, 0);
+
+  if (dinh <= 0) {
+    khung.innerHTML = `<p class="chart-empty">Chưa có số liệu trong ${CHART_SO_THANG} tháng gần đây.</p>`;
+    $("chart-legend").innerHTML = "";
+    return;
+  }
+
+  // Toạ độ trong hệ viewBox, SVG tự co giãn theo bề ngang màn hình.
+  const W = 320, H = 170, traiL = 34, phaiL = 6, trenL = 10, duoiL = 22;
+  const vungW = W - traiL - phaiL;
+  const vungH = H - trenL - duoiL;
+  const y = v => trenL + vungH - (v / dinh) * vungH;
+
+  let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Biểu đồ theo tháng">`;
+
+  // Ba đường kẻ ngang làm mốc đọc
+  [0, 0.5, 1].forEach(p => {
+    const yy = trenL + vungH - p * vungH;
+    svg += `<line x1="${traiL}" y1="${yy}" x2="${W - phaiL}" y2="${yy}"
+                  stroke="var(--line)" stroke-width="1"/>`;
+    svg += `<text x="${traiL - 4}" y="${yy + 3}" text-anchor="end"
+                  font-size="8" fill="var(--muted)">${Logic.formatNgan(dinh * p)}</text>`;
+  });
+
+  const buoc = vungW / thangs.length;
+
+  if (chartKieu === "cot") {
+    const rongCum = buoc * 0.62;
+    const rongCot = rongCum / chuoi.length;
+    thangs.forEach((t, i) => {
+      const x0 = traiL + i * buoc + (buoc - rongCum) / 2;
+      chuoi.forEach((c, j) => {
+        const v = c.giaTri[i];
+        const cao = Math.max(0, trenL + vungH - y(v));
+        svg += `<rect x="${x0 + j * rongCot}" y="${y(v)}"
+                      width="${rongCot - 1.5}" height="${cao}"
+                      fill="${c.mau}" rx="1.5"><title>${c.ten} ${nhanThangNgan(t)}: ${formatMoney(v)} đ</title></rect>`;
+      });
+    });
+  } else {
+    chuoi.forEach(c => {
+      const diem = c.giaTri.map((v, i) => `${traiL + buoc * (i + 0.5)},${y(v)}`).join(" ");
+      svg += `<polyline points="${diem}" fill="none" stroke="${c.mau}"
+                        stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+      c.giaTri.forEach((v, i) => {
+        svg += `<circle cx="${traiL + buoc * (i + 0.5)}" cy="${y(v)}" r="2.6"
+                        fill="${c.mau}"><title>${c.ten} ${nhanThangNgan(thangs[i])}: ${formatMoney(v)} đ</title></circle>`;
+      });
+    });
+  }
+
+  thangs.forEach((t, i) => {
+    svg += `<text x="${traiL + buoc * (i + 0.5)}" y="${H - 7}" text-anchor="middle"
+                  font-size="9" fill="var(--muted)">${nhanThangNgan(t)}</text>`;
+  });
+
+  svg += `</svg>`;
+  khung.innerHTML = svg;
+
+  $("chart-legend").innerHTML = chuoi.map(c =>
+    `<span><i style="background:${c.mau}"></i>${c.ten}</span>`).join("");
+}
+
+function renderChartControls() {
+  const oKieu = $("chart-kind");
+  if (!oKieu) return;
+
+  oKieu.innerHTML = [["cot", "Cột"], ["duong", "Đường"]].map(([k, ten]) =>
+    `<button type="button" class="chip${k === chartKieu ? " on" : ""}" data-kieu="${k}">${ten}</button>`
+  ).join("");
+  oKieu.querySelectorAll(".chip").forEach(b => {
+    b.addEventListener("click", () => {
+      chartKieu = b.dataset.kieu;
+      renderChartControls();
+      veBieuDo();
+    });
+  });
+
+  // Danh sách chọn: gộp cả nguồn thu, danh mục chi và người, để anh xem
+  // diễn biến của đúng mục mình quan tâm.
+  const oChuoi = $("chart-series");
+  const nhomThu = CATEGORIES_THU.map(c => `<option value="nguonThu:${c}">Thu · ${c}</option>`).join("");
+  const nhomChi = CATEGORIES_CHI.map(c => `<option value="danhMucChi:${c}">Chi · ${c}</option>`).join("");
+  const nhomNguoi = PAYERS.map(p => `<option value="nguoiChi:${p}">Chi bởi ${p}</option>`).join("");
+
+  oChuoi.innerHTML =
+    `<option value="thuchi">Tổng thu và tổng chi</option>` + nhomThu + nhomChi + nhomNguoi;
+  oChuoi.value = chartChuoi;
+  oChuoi.onchange = () => { chartChuoi = oChuoi.value; veBieuDo(); };
+}
+
 function renderStats() {
   const modeBox = $("stat-modes");
   if (!modeBox) return;
@@ -429,6 +570,9 @@ function renderStats() {
     theTongKet("Còn lại",
       (kq.conLai < 0 ? "−" : "") + formatMoney(Math.abs(kq.conLai)) + " đ",
       kq.conLai < 0 ? "am con" : "con");
+
+  renderChartControls();
+  veBieuDo();
 
   veThanh($("stat-by-income"), "Thu theo nguồn", kq.theoNguonThu, "thu", "nguonThu");
   veThanh($("stat-by-cat"), "Chi theo danh mục", kq.theoDanhMuc, "chi", "danhMucChi");
