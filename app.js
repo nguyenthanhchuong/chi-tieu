@@ -61,7 +61,7 @@ function todayKey() {
 
 // ===== Gọi API =====
 // Tăng mỗi lần sửa app, hiển thị ở màn hình PIN để biết máy đang chạy bản nào.
-const APP_VERSION = "13";
+const APP_VERSION = "14";
 
 // ===== Nhật ký dò lỗi =====
 // Ghi vào localStorage nên còn nguyên kể cả khi trang tự nạp lại — đây là
@@ -363,7 +363,7 @@ function theTongKet(ten, tien, kieu) {
 }
 
 // Vẽ danh sách có thanh tỉ lệ, dùng chung cho phần theo danh mục và theo người.
-function veThanh(container, tieuDe, hang, kieu) {
+function veThanh(container, tieuDe, hang, kieu, loaiChiTiet) {
   if (!hang.length) {
     container.innerHTML = `<h3>${tieuDe}</h3><p class="empty">Chưa có số liệu.</p>`;
     return;
@@ -374,7 +374,7 @@ function veThanh(container, tieuDe, hang, kieu) {
   container.innerHTML = `<h3>${tieuDe}</h3>` + hang.map(h => {
     const rong = lonNhat > 0 ? Math.round((h.tien / lonNhat) * 100) : 0;
     const pct = tong > 0 ? Math.round((h.tien / tong) * 100) : 0;
-    return `<div class="bar-row">
+    return `<div class="bar-row${loaiChiTiet ? " bam-duoc" : ""}" data-muc="${h.ten}">
               <div class="bar-head">
                 <span class="bar-name">${h.ten}</span>
                 <span class="bar-num">${formatMoney(h.tien)} đ<span class="bar-pct">${pct}%</span></span>
@@ -384,6 +384,12 @@ function veThanh(container, tieuDe, hang, kieu) {
               </div>
             </div>`;
   }).join("");
+
+  if (loaiChiTiet) {
+    container.querySelectorAll(".bar-row").forEach(el => {
+      el.addEventListener("click", () => moChiTietMuc(loaiChiTiet, el.dataset.muc));
+    });
+  }
 }
 
 function renderStats() {
@@ -420,9 +426,9 @@ function renderStats() {
       (kq.conLai < 0 ? "−" : "") + formatMoney(Math.abs(kq.conLai)) + " đ",
       kq.conLai < 0 ? "am con" : "con");
 
-  veThanh($("stat-by-income"), "Thu theo nguồn", kq.theoNguonThu, "thu");
-  veThanh($("stat-by-cat"), "Chi theo danh mục", kq.theoDanhMuc, "chi");
-  veThanh($("stat-by-person"), "Chi theo người", kq.theoNguoi, "chi");
+  veThanh($("stat-by-income"), "Thu theo nguồn", kq.theoNguonThu, "thu", "nguonThu");
+  veThanh($("stat-by-cat"), "Chi theo danh mục", kq.theoDanhMuc, "chi", "danhMucChi");
+  veThanh($("stat-by-person"), "Chi theo người", kq.theoNguoi, "chi", "nguoiChi");
 }
 
 // ===== Màn hình sáu lọ =====
@@ -509,6 +515,23 @@ function renderJars() {
     : `<p class="empty">Chưa có lần chuyển nào.</p>`);
 }
 
+// Hộp chi tiết dùng chung cho cả màn hình lọ lẫn bảng thống kê.
+function moHopChiTiet(tieuDe, tomTat, ds, khiRong) {
+  $("jar-detail-name").textContent = tieuDe;
+  $("jar-detail-sum").textContent = tomTat;
+  $("jar-detail-list").innerHTML = ds.length
+    ? ds.map(d => `
+        <div class="mv">
+          <div class="mv-main">
+            <div class="mv-name">${d.moTa}</div>
+            <div class="mv-meta">${[d.date, d.note].filter(Boolean).join(" · ")}</div>
+          </div>
+          <div class="mv-num ${d.chieu}">${d.chieu === "vao" ? "+" : "−"}${formatMoney(d.tien)} đ</div>
+        </div>`).join("")
+    : `<p class="empty">${khiRong}</p>`;
+  $("jar-sheet").hidden = false;
+}
+
 // Chi tiết một lọ: liệt kê mọi khoản đã tác động lên lọ đó.
 // Danh sách này cộng lại đúng bằng số dư đang hiện (có ca test canh).
 function moChiTietLo(loKey) {
@@ -519,23 +542,34 @@ function moChiTietLo(loKey) {
   const ds = Logic.chiTietLo(tatCaKhoan(), loKey, thang, tiLeLo);
   const soDu = Logic.soDuCacLo(tatCaKhoan(), thang, tiLeLo)[loKey];
 
-  $("jar-detail-name").textContent = lo.ten;
-  $("jar-detail-sum").textContent =
+  moHopChiTiet(
+    lo.ten,
     `Còn ${formatMoney(soDu.con)} đ · vào ${formatMoney(soDu.vao)} đ · ra ${formatMoney(soDu.ra)} đ` +
-    (lo.congDon ? " · cộng dồn từ trước tới nay" : " · tính trong tháng này");
+      (lo.congDon ? " · cộng dồn từ trước tới nay" : " · tính trong tháng này"),
+    ds,
+    "Lọ này chưa có khoản nào trong kỳ đang xem."
+  );
+}
 
-  $("jar-detail-list").innerHTML = ds.length
-    ? ds.map(d => `
-        <div class="mv">
-          <div class="mv-main">
-            <div class="mv-name">${d.moTa}</div>
-            <div class="mv-meta">${[d.date, d.note].filter(Boolean).join(" · ")}</div>
-          </div>
-          <div class="mv-num ${d.chieu}">${d.chieu === "vao" ? "+" : "−"}${formatMoney(d.tien)} đ</div>
-        </div>`).join("")
-    : `<p class="empty">Lọ này chưa có khoản nào trong kỳ đang xem.</p>`;
+// Chi tiết một dòng trong bảng thống kê (nguồn thu / danh mục chi / người chi).
+function moChiTietMuc(loai, giaTri) {
+  const { dau, cuoi } = Logic.khoangKy(statMode, statOffset);
+  const tuNgay = Logic.ngayKey(dau), denNgay = Logic.ngayKey(cuoi);
+  const ds = Logic.chiTietMuc(tatCaKhoan(), tuNgay, denNgay, loai, giaTri);
+  const tong = ds.reduce((s, d) => s + d.tien, 0);
 
-  $("jar-sheet").hidden = false;
+  const nhan = {
+    nguonThu: "Thu từ",
+    danhMucChi: "Chi cho",
+    nguoiChi: "Chi bởi"
+  }[loai] || "";
+
+  moHopChiTiet(
+    `${nhan} ${giaTri}`,
+    `${ds.length} khoản · tổng ${formatMoney(tong)} đ · ${Logic.nhanKy(statMode, dau, cuoi)}`,
+    ds,
+    "Không có khoản nào trong kỳ này."
+  );
 }
 
 // Dồn dư tháng trước: chạy ngầm, ghi lịch sử, không hỏi anh mỗi lần.

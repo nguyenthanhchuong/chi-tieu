@@ -410,6 +410,20 @@ body {
 }
 .bar-row { margin-bottom: 12px; }
 .bar-row:last-child { margin-bottom: 0; }
+.bar-row.bam-duoc {
+  cursor: pointer;
+  border-radius: 8px;
+  padding: 6px;
+  margin: -6px -6px 6px;
+  transition: background 0.15s ease;
+}
+.bar-row.bam-duoc:last-child { margin-bottom: -6px; }
+.bar-row.bam-duoc:active { background: var(--bg); }
+.bar-row.bam-duoc .bar-name::after {
+  content: " ›";
+  color: var(--accent);
+  font-weight: 700;
+}
 .bar-head {
   display: flex;
   justify-content: space-between;
