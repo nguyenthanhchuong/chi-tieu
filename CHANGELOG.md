@@ -22,6 +22,18 @@ Nếu đã cài app ra màn hình chính thì bấm **Tải lại bản mới** 
 
 ---
 
+## v16 — Biểu đồ diễn biến theo tháng
+*Apps Script: không đổi*
+
+- Biểu đồ **cột** hoặc **đường** cho 6 tháng gần nhất, bấm để đổi kiểu
+- Chọn xem: tổng thu và tổng chi, hoặc riêng từng nguồn thu / danh mục chi /
+  từng người
+- Chạm vào cột hoặc điểm để xem số tiền đầy đủ
+- Nhãn trục rút gọn (15tr, 500k) cho khỏi chồng chữ
+- Tháng không có khoản nào vẫn hiện với giá trị 0, biểu đồ không đứt quãng
+- Vẽ bằng SVG viết tay, không dùng thư viện ngoài nên vẫn chạy khi mất mạng
+- Số ca test: 113 → 134
+
 ## v15 — Sửa và xoá khoản đã ghi
 *Apps Script: **Version 8** (thêm lệnh `update` và `delete`)*
 

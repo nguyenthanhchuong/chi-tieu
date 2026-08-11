@@ -426,6 +426,45 @@ body {
   color: var(--muted);
   margin-bottom: 12px;
 }
+/* ---------- Biểu đồ ---------- */
+.chart-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.chart-head h3 { margin: 0; }
+.chips.chart-kind { margin-bottom: 0; }
+.chips.chart-kind .chip { padding: 6px 11px; font-size: 12px; }
+
+.chart-block .sheet-select { margin-bottom: 12px; }
+
+#chart-area svg { width: 100%; height: auto; display: block; }
+.chart-empty {
+  padding: 20px 8px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  justify-content: center;
+  margin-top: 10px;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+.chart-legend span { display: inline-flex; align-items: center; gap: 5px; }
+.chart-legend i {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  display: inline-block;
+}
+
 .bar-row { margin-bottom: 12px; }
 .bar-row:last-child { margin-bottom: 0; }
 .bar-row.bam-duoc {

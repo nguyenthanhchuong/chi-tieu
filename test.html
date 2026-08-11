@@ -653,6 +653,106 @@ test("mục không có khoản nào trả về rỗng", () => {
 });
 
 // ===================================================================
+nhom("Rút gọn số cho nhãn biểu đồ");
+
+test("hàng triệu", () => bang(Logic.formatNgan(15000000), "15tr"));
+test("triệu lẻ giữ một chữ số thập phân", () => bang(Logic.formatNgan(1500000), "1.5tr"));
+test("hàng nghìn", () => bang(Logic.formatNgan(500000), "500k"));
+test("số nhỏ giữ nguyên", () => bang(Logic.formatNgan(800), "800"));
+test("số 0", () => bang(Logic.formatNgan(0), "0"));
+test("số âm", () => bang(Logic.formatNgan(-2000000), "-2tr"));
+
+// ===================================================================
+nhom("Dãy tháng cho biểu đồ");
+
+test("6 tháng liên tiếp", () => {
+  bang(Logic.chuoiThang("2026-08", 6),
+       ["2026-03","2026-04","2026-05","2026-06","2026-07","2026-08"]);
+});
+test("VẮT QUA NĂM MỚI", () => {
+  bang(Logic.chuoiThang("2026-02", 4),
+       ["2025-11","2025-12","2026-01","2026-02"]);
+});
+test("một tháng", () => bang(Logic.chuoiThang("2026-08", 1), ["2026-08"]));
+
+// ===================================================================
+nhom("Diễn biến thu chi theo tháng");
+
+const DB = [
+  { date: "2026-06-05", amount: 10000000, type: "Thu", category: "Lương", payer: "Chương" },
+  { date: "2026-06-10", amount:  4000000, type: "Chi", category: "Ăn uống", payer: "Thư" },
+  { date: "2026-08-01", amount: 12000000, type: "Thu", category: "Lương", payer: "Chương" },
+  { date: "2026-08-03", amount:  2000000, type: "Chi", category: "Ăn uống", payer: "Chương" },
+  { date: "2026-08-04", amount:  1000000, type: "Chi", category: "Đi lại",  payer: "Thư" },
+  { date: "2026-08-09", amount:   500000, type: "Chuyển", jar: "PLAY", jarTo: "LTSS", category: "Chuyển lọ" }
+];
+
+test("mỗi tháng một dòng, đủ số tháng yêu cầu", () => {
+  bang(Logic.dienBienTheoThang(DB, "2026-08", 3).map(d => d.thang),
+       ["2026-06", "2026-07", "2026-08"]);
+});
+
+test("THÁNG KHÔNG CÓ KHOẢN NÀO VẪN CÓ DÒNG, giá trị 0", () => {
+  const t7 = Logic.dienBienTheoThang(DB, "2026-08", 3).find(d => d.thang === "2026-07");
+  bang([t7.thu, t7.chi, t7.conLai], [0, 0, 0], "thiếu tháng sẽ làm biểu đồ đứt quãng");
+});
+
+test("cộng đúng thu và chi từng tháng", () => {
+  const d = Logic.dienBienTheoThang(DB, "2026-08", 3);
+  bang(d.map(x => [x.thu, x.chi]), [[10000000, 4000000], [0, 0], [12000000, 3000000]]);
+});
+
+test("CHUYỂN LỌ KHÔNG BỊ TÍNH VÀO CHI", () => {
+  const t8 = Logic.dienBienTheoThang(DB, "2026-08", 3).find(d => d.thang === "2026-08");
+  bang(t8.chi, 3000000, "lệnh chuyển 500k bị cộng nhầm vào chi tháng 8");
+});
+
+test("còn lại = thu − chi", () => {
+  const t8 = Logic.dienBienTheoThang(DB, "2026-08", 3).find(d => d.thang === "2026-08");
+  bang(t8.conLai, 9000000);
+});
+
+test("tháng chi nhiều hơn thu thì còn lại âm", () => {
+  const t6 = Logic.dienBienTheoThang(DB, "2026-08", 3).find(d => d.thang === "2026-06");
+  bang(t6.conLai, 6000000);
+});
+
+// ===================================================================
+nhom("Diễn biến theo tháng của một mục");
+
+test("một danh mục chi", () => {
+  const d = Logic.dienBienMuc(DB, "2026-08", 3, "danhMucChi", "Ăn uống");
+  bang(d.map(x => x.tien), [4000000, 0, 2000000]);
+});
+
+test("một nguồn thu", () => {
+  const d = Logic.dienBienMuc(DB, "2026-08", 3, "nguonThu", "Lương");
+  bang(d.map(x => x.tien), [10000000, 0, 12000000]);
+});
+
+test("một người chi", () => {
+  const d = Logic.dienBienMuc(DB, "2026-08", 3, "nguoiChi", "Thư");
+  bang(d.map(x => x.tien), [4000000, 0, 1000000]);
+});
+
+test("chuyển lọ không lọt vào diễn biến của mục", () => {
+  const d = Logic.dienBienMuc(DB, "2026-08", 3, "danhMucChi", "Chuyển lọ");
+  bang(d.map(x => x.tien), [0, 0, 0]);
+});
+
+test("mục không tồn tại thì mọi tháng đều 0", () => {
+  const d = Logic.dienBienMuc(DB, "2026-08", 3, "danhMucChi", "Không có");
+  bang(d.every(x => x.tien === 0), true);
+});
+
+test("tổng các tháng bằng tổng của mục đó trong kỳ", () => {
+  const d = Logic.dienBienMuc(DB, "2026-08", 3, "danhMucChi", "Ăn uống");
+  const r = Logic.tongHopKy(DB, "2026-06-01", "2026-08-31", NGUOI);
+  const muc = r.theoDanhMuc.find(m => m.ten === "Ăn uống");
+  bang(d.reduce((s, x) => s + x.tien, 0), muc.tien);
+});
+
+// ===================================================================
 nhom("Thông báo lỗi cho người dùng");
 
 test("mất mạng", () => {

@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Sổ Chi Tiêu">
-<link rel="stylesheet" href="style.css?v=15">
+<link rel="stylesheet" href="style.css?v=16">
 </head>
 <body>
 
@@ -214,6 +214,18 @@
       </div>
 
       <div class="stat-summary" id="stat-summary"></div>
+
+      <!-- Biểu đồ diễn biến theo tháng -->
+      <div class="stat-block chart-block">
+        <div class="chart-head">
+          <h3>Diễn biến theo tháng</h3>
+          <div class="chips chart-kind" id="chart-kind"></div>
+        </div>
+        <select class="sheet-select" id="chart-series"></select>
+        <div id="chart-area"></div>
+        <div class="chart-legend" id="chart-legend"></div>
+      </div>
+
       <div class="stat-block" id="stat-by-income"></div>
       <div class="stat-block" id="stat-by-cat"></div>
       <div class="stat-block" id="stat-by-person"></div>
@@ -223,7 +235,7 @@
   <div class="toast" id="toast" hidden></div>
 </div>
 
-<script src="logic.js?v=15"></script>
-<script src="app.js?v=15"></script>
+<script src="logic.js?v=16"></script>
+<script src="app.js?v=16"></script>
 </body>
 </html>
