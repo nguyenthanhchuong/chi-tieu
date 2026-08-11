@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Sổ Chi Tiêu">
-<link rel="stylesheet" href="style.css?v=14">
+<link rel="stylesheet" href="style.css?v=15">
 </head>
 <body>
 
@@ -154,6 +154,36 @@
     </div>
   </div>
 
+  <!-- Hộp thoại sửa / xoá một khoản đã ghi -->
+  <div class="sheet" id="edit-sheet" hidden>
+    <div class="sheet-card">
+      <h3 class="sheet-title">Sửa khoản đã ghi</h3>
+      <p class="sheet-sub" id="edit-meta">—</p>
+
+      <p class="sheet-warn" id="edit-warn" hidden></p>
+
+      <label class="sheet-label" for="edit-amount">Số tiền</label>
+      <input type="text" class="note-input" id="edit-amount" inputmode="numeric" placeholder="0">
+
+      <label class="sheet-label" for="edit-category">Danh mục</label>
+      <select class="sheet-select" id="edit-category"></select>
+
+      <label class="sheet-label" for="edit-payer">Người</label>
+      <select class="sheet-select" id="edit-payer"></select>
+
+      <label class="sheet-label" for="edit-note">Ghi chú</label>
+      <input type="text" class="note-input" id="edit-note" placeholder="Không bắt buộc">
+
+      <p class="entry-error" id="edit-error" hidden></p>
+
+      <div class="sheet-actions">
+        <button type="button" class="btn-ghost" id="edit-cancel">Huỷ</button>
+        <button type="button" class="btn-primary" id="edit-save">Lưu</button>
+      </div>
+      <button type="button" class="btn-danger" id="edit-delete">Xoá khoản này</button>
+    </div>
+  </div>
+
   <!-- Hộp thoại chỉnh tỉ lệ -->
   <div class="sheet" id="ratio-sheet" hidden>
     <div class="sheet-card">
@@ -193,7 +223,7 @@
   <div class="toast" id="toast" hidden></div>
 </div>
 
-<script src="logic.js?v=14"></script>
-<script src="app.js?v=14"></script>
+<script src="logic.js?v=15"></script>
+<script src="app.js?v=15"></script>
 </body>
 </html>

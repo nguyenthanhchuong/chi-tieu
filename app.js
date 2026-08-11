@@ -61,7 +61,7 @@ function todayKey() {
 
 // ===== Gọi API =====
 // Tăng mỗi lần sửa app, hiển thị ở màn hình PIN để biết máy đang chạy bản nào.
-const APP_VERSION = "14";
+const APP_VERSION = "15";
 
 // ===== Nhật ký dò lỗi =====
 // Ghi vào localStorage nên còn nguyên kể cả khi trang tự nạp lại — đây là
@@ -331,6 +331,10 @@ function render() {
           <div class="item-meta">${meta}</div>
         </div>
         <div class="item-amount${thu ? " thu" : ""}">${thu ? "+" : ""}${formatMoney(e.amount)} đ</div>`;
+      // Khoản còn nằm trong hàng chờ thì chưa có trên Sheet, sửa chưa được.
+      if (!e.unsent) {
+        row.addEventListener("click", () => moHopSua(e.id));
+      }
       list.appendChild(row);
     });
   }
@@ -513,6 +517,145 @@ function renderJars() {
           <span class="bar-num">${formatMoney(e.amount)} đ</span>
         </div><div class="item-meta">${[e.date, e.note].filter(Boolean).join(" · ")}</div></div>`).join("")
     : `<p class="empty">Chưa có lần chuyển nào.</p>`);
+}
+
+// ===== Sửa / xoá một khoản đã ghi =====
+let khoanDangSua = null;
+
+function moHopSua(id) {
+  const e = entries.find(x => x.id === id);
+  if (!e) return;
+  khoanDangSua = e;
+
+  const laThu = laKhoanThu(e);
+  const laChuyen = Logic.laChuyenLo(e);
+
+  $("edit-meta").textContent =
+    `${laThu ? "Khoản thu" : laChuyen ? "Chuyển lọ" : "Khoản chi"} · ghi ngày ${e.date}`;
+
+  // Lệnh dồn dư do app tự tạo: xoá xong lần mở sau app sẽ tạo lại đúng lệnh đó,
+  // vì nó dựa trên phần dư thực tế chứ không phải trên dòng đã ghi.
+  const canhBao = $("edit-warn");
+  if (String(e.id).startsWith("auto-")) {
+    canhBao.textContent = "Đây là lệnh dồn dư app tự tạo. Xoá đi thì lần mở app sau nó sẽ được tạo lại, vì phần dư tháng đó vẫn còn.";
+    canhBao.hidden = false;
+  } else {
+    canhBao.hidden = true;
+  }
+
+  $("edit-amount").value = formatMoney(e.amount);
+
+  // Chuyển lọ không có danh mục để chọn, chỉ sửa được số tiền và ghi chú.
+  const oDanhMuc = $("edit-category");
+  const dsDanhMuc = laChuyen ? ["Chuyển lọ"] : (laThu ? CATEGORIES_THU : CATEGORIES_CHI);
+  oDanhMuc.innerHTML = dsDanhMuc.map(c =>
+    `<option value="${c}"${c === e.category ? " selected" : ""}>${c}</option>`).join("");
+  oDanhMuc.disabled = laChuyen;
+
+  const oNguoi = $("edit-payer");
+  oNguoi.innerHTML = PAYERS.map(p =>
+    `<option value="${p}"${p === e.payer ? " selected" : ""}>${p}</option>`).join("");
+
+  $("edit-note").value = e.note || "";
+  $("edit-error").hidden = true;
+  datLaiNutXoa();
+  $("edit-sheet").hidden = false;
+}
+
+// Xoá là việc không lấy lại được, nên bắt bấm hai lần thay vì hộp xác nhận
+// riêng — trên điện thoại hộp chồng hộp rất dễ bấm nhầm.
+function datLaiNutXoa() {
+  const btn = $("edit-delete");
+  btn.textContent = "Xoá khoản này";
+  btn.classList.remove("xacnhan");
+  btn.dataset.xacnhan = "";
+}
+
+async function luuSuaKhoan() {
+  if (!khoanDangSua) return;
+  const tien = parseAmount($("edit-amount").value);
+  const loi = $("edit-error");
+
+  if (tien <= 0) {
+    loi.textContent = "Số tiền phải lớn hơn 0.";
+    loi.hidden = false;
+    return;
+  }
+  loi.hidden = true;
+
+  const cu = khoanDangSua;
+  const laThu = laKhoanThu(cu);
+  const danhMuc = $("edit-category").value;
+
+  const moi = {
+    ...cu,
+    amount: tien,
+    category: danhMuc,
+    payer: $("edit-payer").value,
+    note: $("edit-note").value.trim(),
+    // Sửa số tiền khoản thu thì phải chia lại vào các lọ, nếu không số dư lọ
+    // sẽ vẫn theo số cũ. Chia theo tỉ lệ hiện tại.
+    alloc: laThu ? Logic.phanBo(tien, tiLeLo) : (cu.alloc || null),
+    jar: Logic.laChuyenLo(cu) ? cu.jar : (laThu ? "" : Logic.doanLo(danhMuc))
+  };
+
+  const btn = $("edit-save");
+  btn.disabled = true;
+  btn.textContent = "Đang lưu…";
+  try {
+    await callApi("update", { entry: moi }, { retries: 2 });
+    const i = entries.findIndex(x => x.id === cu.id);
+    if (i >= 0) entries[i] = moi;
+    $("edit-sheet").hidden = true;
+    showToast("Đã cập nhật khoản này");
+    render();
+  } catch (err) {
+    loi.textContent = friendlyError(err);
+    loi.hidden = false;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Lưu";
+  }
+}
+
+async function xoaKhoanDangSua() {
+  const btn = $("edit-delete");
+
+  if (btn.dataset.xacnhan !== "roi") {
+    btn.dataset.xacnhan = "roi";
+    btn.textContent = "Bấm lần nữa để xoá hẳn";
+    btn.classList.add("xacnhan");
+    return;
+  }
+
+  if (!khoanDangSua) return;
+  const loi = $("edit-error");
+  btn.disabled = true;
+  btn.textContent = "Đang xoá…";
+  try {
+    await callApi("delete", { id: khoanDangSua.id }, { retries: 2 });
+    entries = entries.filter(x => x.id !== khoanDangSua.id);
+    $("edit-sheet").hidden = true;
+    showToast("Đã xoá khoản này");
+    render();
+  } catch (err) {
+    loi.textContent = friendlyError(err);
+    loi.hidden = false;
+    datLaiNutXoa();
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function initEdit() {
+  if (!$("edit-sheet")) return;
+  $("edit-cancel").addEventListener("click", () => { $("edit-sheet").hidden = true; });
+  $("edit-save").addEventListener("click", luuSuaKhoan);
+  $("edit-delete").addEventListener("click", xoaKhoanDangSua);
+  $("edit-amount").addEventListener("input", e => {
+    const n = parseAmount(e.target.value);
+    e.target.value = n ? formatMoney(n) : "";
+  });
 }
 
 // Hộp chi tiết dùng chung cho cả màn hình lọ lẫn bảng thống kê.
@@ -883,6 +1026,7 @@ function init() {
   renderChips();
   initTabs();
   initJars();
+  initEdit();
 
   // Vừa gõ vừa chấm phân cách nghìn cho dễ đọc
   $("amount").addEventListener("input", e => {
