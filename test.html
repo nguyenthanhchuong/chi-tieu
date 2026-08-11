@@ -579,6 +579,80 @@ test("kỳ không có khoản thu thì danh sách rỗng", () => {
 });
 
 // ===================================================================
+nhom("Chi tiết một dòng trong bảng thống kê");
+
+const CTM = [
+  { date: "2026-08-01", amount: 9000000, type: "Thu", category: "Lương",   payer: "Chương" },
+  { date: "2026-08-02", amount: 7000000, type: "Thu", category: "Lương",   payer: "Thư" },
+  { date: "2026-08-03", amount: 1000000, type: "Thu", category: "Thưởng",  payer: "Chương" },
+  { date: "2026-08-05", amount:  300000, type: "Chi", category: "Ăn uống", payer: "Thư", note: "cơm trưa" },
+  { date: "2026-08-06", amount:  120000, type: "Chi", category: "Ăn uống", payer: "Chương" },
+  { date: "2026-08-07", amount:  250000, type: "Chi", category: "Đi lại",  payer: "Thư" },
+  { date: "2026-08-10", amount:  500000, type: "Chuyển", jar: "PLAY", jarTo: "LTSS", category: "Chuyển lọ" },
+  { date: "2026-09-01", amount:  999999, type: "Chi", category: "Ăn uống", payer: "Thư" }
+];
+const TU = "2026-08-01", DEN = "2026-08-31";
+const gopCTM = Logic.tongHopKy(CTM, TU, DEN, NGUOI);
+
+test("chi tiết một NGUỒN THU", () => {
+  const ds = Logic.chiTietMuc(CTM, TU, DEN, "nguonThu", "Lương");
+  bang([ds.length, ds.every(d => d.chieu === "vao")], [2, true]);
+});
+
+test("TỔNG CHI TIẾT NGUỒN THU BẰNG SỐ TRÊN THANH", () => {
+  gopCTM.theoNguonThu.forEach(n => {
+    const ds = Logic.chiTietMuc(CTM, TU, DEN, "nguonThu", n.ten);
+    bang(ds.reduce((s, d) => s + d.tien, 0), n.tien, `nguồn ${n.ten} lệch`);
+  });
+});
+
+test("chi tiết một DANH MỤC CHI", () => {
+  const ds = Logic.chiTietMuc(CTM, TU, DEN, "danhMucChi", "Ăn uống");
+  bang([ds.length, ds.reduce((s, d) => s + d.tien, 0)], [2, 420000]);
+});
+
+test("TỔNG CHI TIẾT DANH MỤC BẰNG SỐ TRÊN THANH", () => {
+  gopCTM.theoDanhMuc.forEach(m => {
+    const ds = Logic.chiTietMuc(CTM, TU, DEN, "danhMucChi", m.ten);
+    bang(ds.reduce((s, d) => s + d.tien, 0), m.tien, `danh mục ${m.ten} lệch`);
+  });
+});
+
+test("TỔNG CHI TIẾT THEO NGƯỜI BẰNG SỐ TRÊN THANH", () => {
+  gopCTM.theoNguoi.forEach(n => {
+    const ds = Logic.chiTietMuc(CTM, TU, DEN, "nguoiChi", n.ten);
+    bang(ds.reduce((s, d) => s + d.tien, 0), n.tien, `người ${n.ten} lệch`);
+  });
+});
+
+test("CHUYỂN LỌ KHÔNG LỌT VÀO CHI TIẾT DANH MỤC CHI", () => {
+  bang(Logic.chiTietMuc(CTM, TU, DEN, "danhMucChi", "Chuyển lọ"), []);
+});
+
+test("chuyển lọ không lọt vào chi tiết theo người", () => {
+  const ds = Logic.chiTietMuc(CTM, TU, DEN, "nguoiChi", "Thư");
+  bang(ds.some(d => d.tien === 500000), false);
+});
+
+test("khoản ngoài kỳ bị loại", () => {
+  const ds = Logic.chiTietMuc(CTM, TU, DEN, "danhMucChi", "Ăn uống");
+  bang(ds.some(d => d.date.startsWith("2026-09")), false);
+});
+
+test("xếp mới nhất lên đầu", () => {
+  const ds = Logic.chiTietMuc(CTM, TU, DEN, "nguonThu", "Lương");
+  bang(ds.map(d => d.date), ["2026-08-02", "2026-08-01"]);
+});
+
+test("loại không hợp lệ trả về rỗng", () => {
+  bang(Logic.chiTietMuc(CTM, TU, DEN, "linh tinh", "Lương"), []);
+});
+
+test("mục không có khoản nào trả về rỗng", () => {
+  bang(Logic.chiTietMuc(CTM, TU, DEN, "nguonThu", "Kinh doanh"), []);
+});
+
+// ===================================================================
 nhom("Thông báo lỗi cho người dùng");
 
 test("mất mạng", () => {

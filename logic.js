@@ -177,6 +177,37 @@ const Logic = (function () {
     return ra.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
   }
 
+  // Liệt kê các khoản đứng sau một dòng trong bảng thống kê.
+  // loai: "nguonThu" | "danhMucChi" | "nguoiChi"
+  // Cộng lại phải bằng đúng con số trên thanh, nếu không người dùng bấm vào
+  // xem sẽ thấy số khác với số vừa nhìn thấy.
+  function chiTietMuc(khoan, tuNgay, denNgay, loai, giaTri) {
+    const trongKy = (khoan || []).filter(e => trongKhoang(e && e.date, tuNgay, denNgay));
+    const nhan = e => (e && e.category) || "Khác";
+
+    let ds;
+    if (loai === "nguonThu") {
+      ds = trongKy.filter(e => laKhoanThu(e) && nhan(e) === giaTri);
+    } else if (loai === "danhMucChi") {
+      ds = trongKy.filter(e => laKhoanChi(e) && nhan(e) === giaTri);
+    } else if (loai === "nguoiChi") {
+      ds = trongKy.filter(e => laKhoanChi(e) && e && e.payer === giaTri);
+    } else {
+      return [];
+    }
+
+    const vao = loai === "nguonThu";
+    return ds
+      .map(e => ({
+        date: e.date,
+        tien: Number(e.amount) || 0,
+        chieu: vao ? "vao" : "ra",
+        moTa: vao ? (nhan(e)) : (loai === "nguoiChi" ? nhan(e) : (e.payer || "—")),
+        note: [vao ? e.payer : null, e.note].filter(Boolean).join(" · ")
+      }))
+      .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+  }
+
   // Phần dư của các lọ theo tháng ở những tháng ĐÃ QUA mà chưa được chuyển đi.
   // Bình thường luôn bằng 0 vì app tự chuyển; khác 0 nghĩa là có lệnh chuyển
   // chưa gửi được, tiền vẫn còn trên sổ chứ không bốc hơi.
@@ -371,7 +402,7 @@ const Logic = (function () {
     khoangKy, nhanKy, trongKhoang, tongHopKy, friendlyError,
     // Sáu chiếc lọ
     LOS, LO_MAC_DINH_NHAN_DU, timLo, tiLeMacDinh, doanLo,
-    phanBo, phanBoCuaKhoanThu, soDuCacLo, chiTietLo, duChuaChuyen,
+    phanBo, phanBoCuaKhoanThu, soDuCacLo, chiTietLo, chiTietMuc, duChuaChuyen,
     maChuyenTuDong, lenhChuyenTuDong, ngayCuoiThang, kiemTraChuyen
   };
 })();

@@ -22,6 +22,16 @@ Nếu đã cài app ra màn hình chính thì bấm **Tải lại bản mới** 
 
 ---
 
+## v14 — Bấm vào dòng thống kê để xem chi tiết
+*Apps Script: không đổi*
+
+- Bấm vào từng dòng trong **Thu theo nguồn**, **Chi theo danh mục**, **Chi theo
+  người** để xem danh sách khoản đứng sau con số đó
+- Tổng các khoản chi tiết bằng đúng số trên thanh (có ca test canh từng dòng)
+- Lệnh chuyển lọ không lọt vào chi tiết khoản chi
+- Gom hộp chi tiết của lọ và của thống kê thành một khuôn dùng chung
+- Số ca test: 102 → 113
+
 ## v13 — Xem chi tiết lọ và thống kê nguồn thu
 *Apps Script: không đổi*
 
