@@ -22,6 +22,20 @@ Nếu đã cài app ra màn hình chính thì bấm **Tải lại bản mới** 
 
 ---
 
+## v15 — Sửa và xoá khoản đã ghi
+*Apps Script: **Version 8** (thêm lệnh `update` và `delete`)*
+
+- Bấm vào một khoản trong mục **Gần đây** để sửa số tiền, danh mục, người, ghi chú
+- Nút xoá phải bấm hai lần mới xoá hẳn, tránh lỡ tay trên điện thoại
+- Sửa số tiền khoản thu thì tự chia lại vào các lọ theo tỉ lệ hiện tại
+- Sửa danh mục khoản chi thì lọ tương ứng đổi theo
+- Khoản còn nằm trong hàng chờ (chưa gửi lên Sheet) thì chưa sửa được
+- Cảnh báo khi sửa lệnh dồn dư do app tự tạo: xoá đi thì lần mở sau sẽ được
+  tạo lại, vì phần dư tháng đó vẫn còn
+
+> Bản này có đổi Apps Script. Nếu quay lui về v14 trở về trước, phải vào
+> *Manage deployments* chọn lại **Version 7**.
+
 ## v14 — Bấm vào dòng thống kê để xem chi tiết
 *Apps Script: không đổi*
 

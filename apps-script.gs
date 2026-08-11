@@ -87,6 +87,14 @@ function doPost(e) {
       return reply({ ok: true, daGhi: daGhi, tong: ds.length });
     }
 
+    if (body.action === "update") {
+      return reply(suaKhoan(body.entry));
+    }
+
+    if (body.action === "delete") {
+      return reply(xoaKhoan(body.id));
+    }
+
     if (body.action === "getSettings") {
       return reply({ ok: true, settings: docCaiDat() });
     }
@@ -175,6 +183,58 @@ function addEntry(entry) {
     entry.alloc ? JSON.stringify(entry.alloc) : ""
   ]);
 
+  return { ok: true };
+}
+
+// Tìm số dòng theo ID. Trả 0 nếu không có.
+function timDongTheoId(sheet, id) {
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2 || !id) return 0;
+  const ids = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+  for (let i = 0; i < ids.length; i++) {
+    if (String(ids[i][0]) === String(id)) return i + 2;
+  }
+  return 0;
+}
+
+// Sửa khoản đã ghi. Giữ nguyên ID và cột "Thời điểm ghi" để còn truy được
+// khoản này được tạo lúc nào.
+function suaKhoan(entry) {
+  if (!entry || !entry.id) return { ok: false, error: "Thiếu mã khoản cần sửa" };
+
+  const sheet = getSheet();
+  const dong = timDongTheoId(sheet, entry.id);
+  if (!dong) return { ok: false, error: "Không tìm thấy khoản này, có thể đã bị xoá" };
+
+  const loai = (entry.type === "Thu" || entry.type === "Chuyển") ? entry.type : "Chi";
+
+  // Ghi lại từ cột Ngày (2) tới cột Danh mục/Ghi chú/Người, bỏ qua cột 7.
+  sheet.getRange(dong, 2, 1, 5).setValues([[
+    entry.date || "",
+    Number(entry.amount) || 0,
+    entry.category || "",
+    entry.note || "",
+    entry.payer || ""
+  ]]);
+
+  sheet.getRange(dong, 8, 1, 4).setValues([[
+    loai,
+    entry.jar || "",
+    entry.jarTo || "",
+    entry.alloc ? JSON.stringify(entry.alloc) : ""
+  ]]);
+
+  return { ok: true };
+}
+
+function xoaKhoan(id) {
+  if (!id) return { ok: false, error: "Thiếu mã khoản cần xoá" };
+
+  const sheet = getSheet();
+  const dong = timDongTheoId(sheet, id);
+  if (!dong) return { ok: true, daXoaTruocDo: true };
+
+  sheet.deleteRow(dong);
   return { ok: true };
 }
 
