@@ -477,6 +477,108 @@ test("báo khi chuyển quá số dư", () => {
 });
 
 // ===================================================================
+nhom("Chi tiết một lọ");
+
+const CT = [
+  { id: "t1", date: "2026-07-01", amount: 20000000, type: "Thu", category: "Lương" },
+  { id: "t2", date: "2026-08-01", amount: 10000000, type: "Thu", category: "Thưởng" },
+  { id: "c1", date: "2026-08-05", amount:  300000, type: "Chi", jar: "NEC", category: "Ăn uống", payer: "Thư" },
+  { id: "c2", date: "2026-08-06", amount:  200000, type: "Chi", jar: "PLAY", category: "Giải trí", payer: "Chương" },
+  { id: "m1", date: "2026-08-10", amount:  500000, type: "Chuyển", jar: "PLAY", jarTo: "LTSS" }
+];
+
+test("liệt kê đủ khoản vào và khoản ra của lọ", () => {
+  const ds = Logic.chiTietLo(CT, "PLAY", "2026-08", TY);
+  bang(ds.length, 3, "phải có: chia từ khoản thu, chi giải trí, chuyển đi");
+});
+
+test("CỘNG LẠI PHẢI BẰNG ĐÚNG SỐ DƯ ĐANG HIỆN", () => {
+  Logic.LOS.forEach(lo => {
+    const ct = Logic.chiTietLo(CT, lo.key, "2026-08", TY);
+    const tong = ct.reduce((s, d) => s + (d.chieu === "vao" ? d.tien : -d.tien), 0);
+    const soDu = Logic.soDuCacLo(CT, "2026-08", TY)[lo.key].con;
+    bang(tong, soDu, `lọ ${lo.ten} lệch giữa chi tiết và số dư`);
+  });
+});
+
+test("lọ theo tháng chỉ hiện khoản trong tháng đó", () => {
+  const ds = Logic.chiTietLo(CT, "NEC", "2026-08", TY);
+  bang(ds.some(d => d.date.startsWith("2026-07")), false);
+});
+
+test("LỌ CỘNG DỒN hiện cả khoản tháng trước", () => {
+  const ds = Logic.chiTietLo(CT, "LTSS", "2026-08", TY);
+  bang(ds.some(d => d.date.startsWith("2026-07")), true, "tiền để dành tháng 7 phải nhìn thấy được");
+});
+
+test("xếp mới nhất lên đầu", () => {
+  const ds = Logic.chiTietLo(CT, "LTSS", "2026-08", TY);
+  const ngay = ds.map(d => d.date);
+  bang(ngay.slice().sort().reverse(), ngay);
+});
+
+test("phân biệt chiều vào và chiều ra", () => {
+  const ds = Logic.chiTietLo(CT, "PLAY", "2026-08", TY);
+  bang([
+    ds.filter(d => d.chieu === "vao").length,
+    ds.filter(d => d.chieu === "ra").length
+  ], [1, 2]);
+});
+
+test("chuyển lọ hiện ở CẢ HAI lọ, đúng chiều", () => {
+  const nguon = Logic.chiTietLo(CT, "PLAY", "2026-08", TY).find(d => d.moTa === "Chuyển đi");
+  const dich  = Logic.chiTietLo(CT, "LTSS", "2026-08", TY).find(d => d.moTa === "Chuyển vào");
+  bang([nguon.tien, dich.tien], [500000, 500000]);
+});
+
+test("lọ không tồn tại trả về rỗng, không lỗi", () => {
+  bang(Logic.chiTietLo(CT, "KHONG_CO", "2026-08", TY), []);
+});
+
+// ===================================================================
+nhom("Thống kê nguồn thu");
+
+test("gộp khoản thu theo nguồn, xếp lớn xuống nhỏ", () => {
+  const r = Logic.tongHopKy(CT, "2026-07-01", "2026-08-31", NGUOI);
+  bang(r.theoNguonThu, [
+    { ten: "Lương", tien: 20000000 },
+    { ten: "Thưởng", tien: 10000000 }
+  ]);
+});
+
+test("NGUỒN THU KHÔNG LẪN KHOẢN CHI", () => {
+  const r = Logic.tongHopKy(CT, "2026-08-01", "2026-08-31", NGUOI);
+  bang(r.theoNguonThu.some(n => n.ten === "Ăn uống" || n.ten === "Giải trí"), false);
+});
+
+test("nguồn thu không lẫn lệnh chuyển lọ", () => {
+  const r = Logic.tongHopKy(CT, "2026-08-01", "2026-08-31", NGUOI);
+  bang(r.theoNguonThu.some(n => n.ten === "Chuyển lọ"), false);
+});
+
+test("tổng các nguồn thu bằng đúng tổng thu", () => {
+  const r = Logic.tongHopKy(CT, "2026-07-01", "2026-08-31", NGUOI);
+  bang(r.theoNguonThu.reduce((s, n) => s + n.tien, 0), r.tongThu);
+});
+
+test("thu theo người", () => {
+  const ds = [
+    { date: "2026-08-01", amount: 9000000, type: "Thu", category: "Lương", payer: "Chương" },
+    { date: "2026-08-02", amount: 7000000, type: "Thu", category: "Lương", payer: "Thư" }
+  ];
+  const r = Logic.tongHopKy(ds, "2026-08-01", "2026-08-31", NGUOI);
+  bang(r.theoNguoiThu, [
+    { ten: "Chương", tien: 9000000 },
+    { ten: "Thư", tien: 7000000 }
+  ]);
+});
+
+test("kỳ không có khoản thu thì danh sách rỗng", () => {
+  const r = Logic.tongHopKy(CT, "2026-09-01", "2026-09-30", NGUOI);
+  bang([r.theoNguonThu, r.theoNguoiThu], [[], []]);
+});
+
+// ===================================================================
 nhom("Thông báo lỗi cho người dùng");
 
 test("mất mạng", () => {

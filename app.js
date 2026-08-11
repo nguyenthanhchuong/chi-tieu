@@ -61,7 +61,7 @@ function todayKey() {
 
 // ===== Gọi API =====
 // Tăng mỗi lần sửa app, hiển thị ở màn hình PIN để biết máy đang chạy bản nào.
-const APP_VERSION = "12";
+const APP_VERSION = "13";
 
 // ===== Nhật ký dò lỗi =====
 // Ghi vào localStorage nên còn nguyên kể cả khi trang tự nạp lại — đây là
@@ -420,6 +420,7 @@ function renderStats() {
       (kq.conLai < 0 ? "−" : "") + formatMoney(Math.abs(kq.conLai)) + " đ",
       kq.conLai < 0 ? "am con" : "con");
 
+  veThanh($("stat-by-income"), "Thu theo nguồn", kq.theoNguonThu, "thu");
   veThanh($("stat-by-cat"), "Chi theo danh mục", kq.theoDanhMuc, "chi");
   veThanh($("stat-by-person"), "Chi theo người", kq.theoNguoi, "chi");
 }
@@ -470,17 +471,21 @@ function renderJars() {
     const tiLeDung = s.vao > 0 ? Math.min(100, Math.round((s.ra / s.vao) * 100)) : 0;
     const am = s.con < 0;
     return `
-      <div class="jar">
+      <div class="jar" data-lo="${lo.key}">
         <div class="jar-top">
           <span class="jar-name">${lo.ten}<span class="jar-tag">${lo.congDon ? "cộng dồn" : "theo tháng"}</span></span>
           <span class="jar-left${am ? " am" : ""}">${am ? "−" : ""}${formatMoney(Math.abs(s.con))} đ</span>
         </div>
-        <div class="jar-sub">Vào ${formatMoney(s.vao)} đ · đã dùng ${formatMoney(s.ra)} đ</div>
+        <div class="jar-sub">Vào ${formatMoney(s.vao)} đ · đã dùng ${formatMoney(s.ra)} đ<span class="jar-more">xem chi tiết ›</span></div>
         <div class="jar-bar">
           <div class="jar-fill${am ? " hetsach" : ""}" style="width:${am ? 100 : tiLeDung}%"></div>
         </div>
       </div>`;
   }).join("");
+
+  box.querySelectorAll(".jar").forEach(el => {
+    el.addEventListener("click", () => moChiTietLo(el.dataset.lo));
+  });
 
   // Phần đã chuyển thành tài sản
   const ts = soDuTaiSan(ds);
@@ -502,6 +507,35 @@ function renderJars() {
           <span class="bar-num">${formatMoney(e.amount)} đ</span>
         </div><div class="item-meta">${[e.date, e.note].filter(Boolean).join(" · ")}</div></div>`).join("")
     : `<p class="empty">Chưa có lần chuyển nào.</p>`);
+}
+
+// Chi tiết một lọ: liệt kê mọi khoản đã tác động lên lọ đó.
+// Danh sách này cộng lại đúng bằng số dư đang hiện (có ca test canh).
+function moChiTietLo(loKey) {
+  const lo = Logic.timLo(loKey);
+  if (!lo) return;
+
+  const thang = thangHienTai();
+  const ds = Logic.chiTietLo(tatCaKhoan(), loKey, thang, tiLeLo);
+  const soDu = Logic.soDuCacLo(tatCaKhoan(), thang, tiLeLo)[loKey];
+
+  $("jar-detail-name").textContent = lo.ten;
+  $("jar-detail-sum").textContent =
+    `Còn ${formatMoney(soDu.con)} đ · vào ${formatMoney(soDu.vao)} đ · ra ${formatMoney(soDu.ra)} đ` +
+    (lo.congDon ? " · cộng dồn từ trước tới nay" : " · tính trong tháng này");
+
+  $("jar-detail-list").innerHTML = ds.length
+    ? ds.map(d => `
+        <div class="mv">
+          <div class="mv-main">
+            <div class="mv-name">${d.moTa}</div>
+            <div class="mv-meta">${[d.date, d.note].filter(Boolean).join(" · ")}</div>
+          </div>
+          <div class="mv-num ${d.chieu}">${d.chieu === "vao" ? "+" : "−"}${formatMoney(d.tien)} đ</div>
+        </div>`).join("")
+    : `<p class="empty">Lọ này chưa có khoản nào trong kỳ đang xem.</p>`;
+
+  $("jar-sheet").hidden = false;
 }
 
 // Dồn dư tháng trước: chạy ngầm, ghi lịch sử, không hỏi anh mỗi lần.
@@ -690,6 +724,7 @@ function initJars() {
     capNhatCanhBaoChuyen();
   });
 
+  $("jar-detail-close").addEventListener("click", () => { $("jar-sheet").hidden = true; });
   $("btn-tile").addEventListener("click", moHopTiLe);
   $("ratio-cancel").addEventListener("click", () => { $("ratio-sheet").hidden = true; });
   $("ratio-ok").addEventListener("click", luuTiLe);
