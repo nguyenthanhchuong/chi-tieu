@@ -22,6 +22,21 @@ Nếu đã cài app ra màn hình chính thì bấm **Tải lại bản mới** 
 
 ---
 
+## v17 — Đổi tông màu sang Hồng đào
+*Apps Script: không đổi*
+
+- Nền `#fdf3f0`, màu neo `#b85252` (gạch ngả cam), khoản thu `#2f7d5f`
+- Đỏ báo lỗi làm sẫm hẳn (`#8f1d14`) để không lẫn với màu gạch của nút
+- Đổi luôn màu thanh trạng thái điện thoại, màn hình chờ và icon ngoài
+  màn hình chính
+- **Gom màu khoản thu về một biến `--thu`**: trước đây ghi cứng ở 5 chỗ trong
+  CSS cộng 3 chỗ cho chế độ tối, đổi tông rất dễ sót
+- Biểu đồ đọc màu từ biến CSS thay vì ghi cứng trong JS, nên chỉ còn một
+  nguồn màu duy nhất cho cả app
+
+> Icon đã đổi màu. Nếu anh cài app ra màn hình chính từ trước, cần gỡ icon cũ
+> rồi cài lại mới thấy icon mới.
+
 ## v16 — Biểu đồ diễn biến theo tháng
 *Apps Script: không đổi*
 

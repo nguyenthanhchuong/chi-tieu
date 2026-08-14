@@ -3,31 +3,37 @@
    đủ đậm vì chữ trắng đặt lên trên: hồng pastel nguyên bản chỉ đạt tương
    phản ~2.9:1, chữ sẽ mờ. Màu chọn ở đây đạt ~4.7:1, đọc số tiền rõ ràng. */
 :root {
-  --bg: #fdf1f5;
+  --bg: #fdf3f0;
   --card: #ffffff;
-  --text: #33212a;
-  --muted: #8a6b76;
-  --line: #f4dde6;
-  --accent: #bf4574;
-  --accent-soft: #fce7ef;
-  --danger: #b3261e;   /* giữ đỏ cam để không lẫn với hồng của nút */
-  --toast: #3a2830;
+  --text: #3a2a28;
+  --muted: #8d7069;
+  --line: #f6e2dc;
+  --accent: #b85252;
+  --accent-soft: #fbeae5;
+  /* Nút màu gạch nên đỏ báo lỗi phải sẫm và đậm hơn hẳn, nếu không số âm
+     và thông báo lỗi sẽ chìm vào cùng tông với nút. */
+  --danger: #8f1d14;
+  --thu: #2f7d5f;      /* khoản thu — dùng chung cho chữ, thanh và biểu đồ */
+  --toast: #3a2c28;
   --radius: 14px;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #171114;
-    --card: #221a1e;
-    --text: #f2e6ea;
-    --muted: #b09aa3;
-    --line: #372b31;
-    /* Đậm hơn bản sáng một chút: chữ trắng trên nút phải đạt tối thiểu
-       4.5:1. Màu #c85182 nhìn hợp mắt hơn nhưng chỉ được 4.24:1. */
-    --accent: #b84876;
-    --accent-soft: #33202a;
-    --danger: #ef8a80;
-    --toast: #46333c;
+    --bg: #171211;
+    --card: #221b19;
+    --text: #f2e8e5;
+    --muted: #b09a94;
+    --line: #372c29;
+    /* Giữ nguyên màu neo của bản sáng: chữ trắng trên nút đạt 4.8:1,
+       vẫn đủ ngưỡng mà không cần làm nhạt đi cho hợp nền tối. */
+    --accent: #b85252;
+    --accent-soft: #33211e;
+    /* Nền tối thì đỏ sẫm sẽ chìm, nên chuyển sang đỏ sáng — vẫn tách bạch
+       khỏi màu gạch của nút. */
+    --danger: #f08b7f;
+    --thu: #59c99a;
+    --toast: #46352f;
   }
 }
 
@@ -197,11 +203,8 @@ body {
 .mv-name { font-size: 13.5px; font-weight: 600; }
 .mv-meta { font-size: 11.5px; color: var(--muted); }
 .mv-num { font-size: 14px; font-weight: 700; white-space: nowrap; }
-.mv-num.vao { color: #1f8a4c; }
+.mv-num.vao { color: var(--thu); }
 .mv-num.ra  { color: var(--accent); }
-@media (prefers-color-scheme: dark) {
-  .mv-num.vao { color: #4ade80; }
-}
 .jar-top {
   display: flex;
   align-items: baseline;
@@ -355,7 +358,7 @@ body {
   margin-top: 12px;
 }
 .ratio-total.sai { color: var(--danger); }
-.ratio-total.dung { color: #1f8a4c; }
+.ratio-total.dung { color: var(--thu); }
 
 /* ---------- Thống kê ---------- */
 .stats { padding: 14px 12px 28px; }
@@ -406,13 +409,10 @@ body {
 .stat-card.wide { grid-column: 1 / -1; }
 .stat-name { font-size: 12px; color: var(--muted); margin-bottom: 3px; }
 .stat-value { font-size: 18px; font-weight: 700; }
-.stat-value.thu { color: #1f8a4c; }
+.stat-value.thu { color: var(--thu); }
 .stat-value.chi { color: var(--accent); }
 .stat-value.am { color: var(--danger); }
 
-@media (prefers-color-scheme: dark) {
-  .stat-value.thu { color: #4ade80; }
-}
 
 .stat-block {
   background: var(--card);
@@ -506,7 +506,7 @@ body {
   background: var(--accent);
   border-radius: 4px;
 }
-.bar-fill.thu { background: #1f8a4c; }
+.bar-fill.thu { background: var(--thu); }
 
 /* ---------- Thanh trên ---------- */
 .topbar {
@@ -666,10 +666,7 @@ body {
   text-overflow: ellipsis;
 }
 .item-amount { font-size: 15px; font-weight: 700; white-space: nowrap; }
-.item-amount.thu { color: #1f8a4c; }
-@media (prefers-color-scheme: dark) {
-  .item-amount.thu { color: #4ade80; }
-}
+.item-amount.thu { color: var(--thu); }
 .empty { padding: 24px 16px; text-align: center; font-size: 13.5px; color: var(--muted); }
 
 /* ---------- Thông báo ---------- */
