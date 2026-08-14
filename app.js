@@ -61,7 +61,7 @@ function todayKey() {
 
 // ===== Gọi API =====
 // Tăng mỗi lần sửa app, hiển thị ở màn hình PIN để biết máy đang chạy bản nào.
-const APP_VERSION = "16";
+const APP_VERSION = "17";
 
 // ===== Nhật ký dò lỗi =====
 // Ghi vào localStorage nên còn nguyên kể cả khi trang tự nạp lại — đây là
@@ -400,8 +400,13 @@ function veThanh(container, tieuDe, hang, kieu, loaiChiTiet) {
 // Vẽ bằng SVG viết tay, không kéo thư viện ngoài: app phải mở được cả khi
 // mất mạng, mà thư viện tải từ CDN thì hỏng đúng lúc đó.
 const CHART_SO_THANG = 6;
-const MAU_THU = "#1f8a4c";
-const MAU_CHI = "#bf4574";
+
+// Đọc màu từ biến CSS thay vì ghi cứng, để đổi tông màu chỉ phải sửa một chỗ
+// trong style.css và biểu đồ tự đổi theo cả chế độ sáng lẫn tối.
+function mauCss(ten, duPhong) {
+  const v = getComputedStyle(document.documentElement).getPropertyValue(ten).trim();
+  return v || duPhong;
+}
 
 let chartKieu = "cot";        // cot | duong
 let chartChuoi = "thuchi";    // thuchi | danhMucChi:Ăn uống | nguonThu:Lương ...
@@ -421,8 +426,8 @@ function layDuLieuBieuDo() {
     return {
       thangs: d.map(x => x.thang),
       chuoi: [
-        { ten: "Thu", mau: MAU_THU, giaTri: d.map(x => x.thu) },
-        { ten: "Chi", mau: MAU_CHI, giaTri: d.map(x => x.chi) }
+        { ten: "Thu", mau: mauCss("--thu", "#2f7d5f"), giaTri: d.map(x => x.thu) },
+        { ten: "Chi", mau: mauCss("--accent", "#b85252"), giaTri: d.map(x => x.chi) }
       ]
     };
   }
@@ -433,7 +438,7 @@ function layDuLieuBieuDo() {
     thangs: d.map(x => x.thang),
     chuoi: [{
       ten: giaTri,
-      mau: loai === "nguonThu" ? MAU_THU : MAU_CHI,
+      mau: loai === "nguonThu" ? mauCss("--thu", "#2f7d5f") : mauCss("--accent", "#b85252"),
       giaTri: d.map(x => x.tien)
     }]
   };
