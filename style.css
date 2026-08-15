@@ -596,6 +596,33 @@ body {
 }
 .note-input:focus { outline: none; border-color: var(--accent); }
 
+.date-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.date-label { font-size: 13px; color: var(--muted); white-space: nowrap; }
+.date-input {
+  flex: 1;
+  min-width: 0;
+  font-family: inherit;
+  font-size: 14.5px;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+.date-input:focus { outline: none; border-color: var(--accent); }
+/* Ngày khác hôm nay thì viền đậm lên, để không lỡ tay ghi nhầm vào ngày cũ
+   rồi vài hôm sau mới phát hiện. */
+.date-input.khac-hom-nay {
+  border-color: var(--accent);
+  border-width: 2px;
+  font-weight: 600;
+}
+
 .payer-row { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
 .payer-label { font-size: 13px; color: var(--muted); white-space: nowrap; }
 .chips.payer { margin-bottom: 0; }

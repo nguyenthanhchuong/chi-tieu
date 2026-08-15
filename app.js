@@ -59,9 +59,40 @@ function todayKey() {
   return Logic.thangKey(new Date());
 }
 
+function ngayHomNay() {
+  return Logic.ngayKey(new Date());
+}
+
+// Ô chọn ngày ở màn hình nhập. Giữ nguyên ngày sau khi lưu để anh ghi liền
+// nhiều khoản của cùng một ngày cũ, nhưng đổi viền cho dễ nhận ra là đang
+// không phải hôm nay.
+function capNhatOngay() {
+  const o = $("entry-date");
+  if (!o) return;
+  const khac = o.value !== ngayHomNay();
+  o.classList.toggle("khac-hom-nay", khac);
+  const nut = $("btn-homnay");
+  if (nut) nut.hidden = !khac;
+}
+
+function initNgay() {
+  const o = $("entry-date");
+  if (!o) return;
+  o.value = ngayHomNay();
+  o.addEventListener("change", capNhatOngay);
+  const nut = $("btn-homnay");
+  if (nut) {
+    nut.addEventListener("click", () => {
+      o.value = ngayHomNay();
+      capNhatOngay();
+    });
+  }
+  capNhatOngay();
+}
+
 // ===== Gọi API =====
 // Tăng mỗi lần sửa app, hiển thị ở màn hình PIN để biết máy đang chạy bản nào.
-const APP_VERSION = "17";
+const APP_VERSION = "18";
 
 // ===== Nhật ký dò lỗi =====
 // Ghi vào localStorage nên còn nguyên kể cả khi trang tự nạp lại — đây là
@@ -693,6 +724,7 @@ function moHopSua(id) {
   }
 
   $("edit-amount").value = formatMoney(e.amount);
+  $("edit-date").value = e.date || ngayHomNay();
 
   // Chuyển lọ không có danh mục để chọn, chỉ sửa được số tiền và ghi chú.
   const oDanhMuc = $("edit-category");
@@ -739,6 +771,7 @@ async function luuSuaKhoan() {
   const moi = {
     ...cu,
     amount: tien,
+    date: $("edit-date").value || cu.date,
     category: danhMuc,
     payer: $("edit-payer").value,
     note: $("edit-note").value.trim(),
@@ -1105,7 +1138,8 @@ async function saveEntry() {
   const now = new Date();
   const entry = {
     id: `${now.getTime()}-${Math.round(now.getTime() % 9973)}`,
-    date: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`,
+    // Ngày do người dùng chọn, mặc định hôm nay.
+    date: ($("entry-date") && $("entry-date").value) || ngayHomNay(),
     amount,
     category: selectedCategory,
     note: $("note").value.trim(),
@@ -1176,6 +1210,7 @@ function init() {
   initTabs();
   initJars();
   initEdit();
+  initNgay();
 
   // Vừa gõ vừa chấm phân cách nghìn cho dễ đọc
   $("amount").addEventListener("input", e => {
