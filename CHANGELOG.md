@@ -22,6 +22,15 @@ Nếu đã cài app ra màn hình chính thì bấm **Tải lại bản mới** 
 
 ---
 
+## v18 — Chọn ngày khi nhập
+*Apps Script: không đổi*
+
+- Thêm ô chọn ngày ở màn hình nhập, mặc định hôm nay
+- Ngày khác hôm nay thì ô đổi viền đậm và hiện nút **về hôm nay**, để không
+  lỡ tay ghi nhầm vào ngày cũ rồi vài hôm sau mới phát hiện
+- Giữ nguyên ngày đã chọn sau khi lưu, tiện ghi liền nhiều khoản cùng một ngày
+- Hộp sửa khoản cũng sửa được ngày
+
 ## v17 — Đổi tông màu sang Hồng đào
 *Apps Script: không đổi*
 
