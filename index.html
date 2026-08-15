@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Sổ Chi Tiêu">
-<link rel="stylesheet" href="style.css?v=17">
+<link rel="stylesheet" href="style.css?v=18">
 </head>
 <body>
 
@@ -67,6 +67,12 @@
       </div>
 
       <div class="chips" id="categories"></div>
+
+      <div class="date-row">
+        <label class="date-label" for="entry-date">Ngày</label>
+        <input type="date" id="entry-date" class="date-input">
+        <button type="button" class="link-btn" id="btn-homnay" hidden>về hôm nay</button>
+      </div>
 
       <input type="text" id="note" class="note-input"
              autocomplete="off" placeholder="Ghi chú (không bắt buộc)">
@@ -165,6 +171,9 @@
       <label class="sheet-label" for="edit-amount">Số tiền</label>
       <input type="text" class="note-input" id="edit-amount" inputmode="numeric" placeholder="0">
 
+      <label class="sheet-label" for="edit-date">Ngày</label>
+      <input type="date" class="sheet-select" id="edit-date">
+
       <label class="sheet-label" for="edit-category">Danh mục</label>
       <select class="sheet-select" id="edit-category"></select>
 
@@ -235,7 +244,7 @@
   <div class="toast" id="toast" hidden></div>
 </div>
 
-<script src="logic.js?v=17"></script>
-<script src="app.js?v=17"></script>
+<script src="logic.js?v=18"></script>
+<script src="app.js?v=18"></script>
 </body>
 </html>
