@@ -4,22 +4,33 @@
  * CÁCH CÀI:
  *  1. Tạo một Google Sheet mới, đặt tên tuỳ ý.
  *  2. Trong Sheet: Tiện ích mở rộng (Extensions) > Apps Script.
- *  3. Xoá hết code mẫu, dán toàn bộ file này vào.
- *  4. Sửa PIN bên dưới thành mã riêng của anh — CHỈ sửa trong trình soạn thảo
- *     Apps Script trên Google, KHÔNG ghi mã thật vào file này rồi push lên
- *     GitHub, vì repo là public, ai cũng đọc được.
+ *  3. Xoá hết code mẫu, dán toàn bộ file này vào, rồi bấm LƯU (Ctrl+S).
+ *  4. Đặt mã PIN — KHÔNG ghi vào code:
+ *     Project Settings (bánh răng bên trái) > Script Properties >
+ *     Add script property > Property: PIN | Value: mã riêng của anh > Save.
  *  5. Bấm Triển khai (Deploy) > Tuỳ chọn triển khai mới (New deployment)
  *     - Loại: Ứng dụng web (Web app)
  *     - Thực thi với tư cách (Execute as): Tôi (Me)
  *     - Ai có quyền truy cập (Who has access): Bất kỳ ai (Anyone)
  *  6. Copy URL nhận được, dán vào biến API_URL trong file app.js.
  *
+ * ĐỔI PIN VỀ SAU: chỉ cần sửa lại giá trị trong Script Properties (bước 4).
+ * Có hiệu lực NGAY, không phải deploy lại — vì PIN được đọc lúc chạy chứ
+ * không nằm trong code đã đóng gói.
+ *
+ * Vì sao để PIN ở Script Properties thay vì trong code:
+ *  - Code file này nằm trong repo GitHub public, ai cũng đọc được.
+ *  - Sửa PIN trong code thì phải deploy phiên bản mới mới ăn; quên bước đó
+ *    là PIN cũ vẫn dùng được mà không hề hay biết.
+ *
  * Lưu ý: đặt "Anyone" là bắt buộc để trang web gọi được, nhưng mọi yêu cầu
  * đều phải kèm đúng PIN nên người lạ có URL cũng không đọc/ghi được.
  */
 
-// >>> ĐỔI PIN NÀY (chỉ sửa trên Apps Script, đừng lưu mã thật vào repo) <<<
-const PIN = "DAT_MA_PIN_RIENG_CUA_ANH_O_DAY";
+// Đọc lúc chạy nên đổi PIN trong Script Properties là ăn ngay.
+function layPin_() {
+  return PropertiesService.getScriptProperties().getProperty("PIN");
+}
 
 const SHEET_NAME = "ChiTieu";
 const SHEET_CAIDAT = "CaiDat";
@@ -65,8 +76,18 @@ function reply(obj) {
 function doPost(e) {
   try {
     const body = JSON.parse(e.postData.contents);
+    const pinThat = layPin_();
 
-    if (body.pin !== PIN) {
+    // Chưa cài PIN thì KHOÁ HẲN, không cho đi tiếp. Nếu bỏ qua bước này,
+    // pinThat là null và người gửi pin null/thiếu sẽ khớp -> mở toang sổ.
+    if (!pinThat) {
+      return reply({
+        ok: false,
+        error: "Chưa cài PIN: vào Project Settings > Script Properties, thêm khoá PIN.",
+      });
+    }
+
+    if (typeof body.pin !== "string" || body.pin !== pinThat) {
       return reply({ ok: false, error: "PIN không đúng" });
     }
 

@@ -25,8 +25,9 @@ Không có máy chủ riêng, không tốn phí. Apps Script đóng vai trò l�
 
 1. Tạo một Google Sheet mới.
 2. Trong Sheet chọn **Extensions → Apps Script**.
-3. Xoá code mẫu, dán toàn bộ nội dung file [`apps-script.gs`](apps-script.gs).
-4. Đổi giá trị `PIN` ở đầu file thành mã riêng.
+3. Xoá code mẫu, dán toàn bộ nội dung file [`apps-script.gs`](apps-script.gs), bấm lưu.
+4. Đặt PIN ở **Project Settings → Script Properties**: thêm khoá `PIN`, giá trị là
+   mã riêng của bạn. **Không** ghi PIN vào code — repo này public, ai cũng đọc được.
 5. **Deploy → New deployment**:
    - Type: **Web app**
    - Execute as: **Me**
@@ -50,8 +51,18 @@ Lần đầu mở app sẽ hỏi PIN. Nhập một lần, máy nhớ cho những
 ## Về bảo mật
 
 Repo phải để public thì GitHub Pages mới chạy miễn phí, nghĩa là URL Apps Script
-trong code ai cũng đọc được. Vì vậy mọi yêu cầu đều phải kèm PIN đúng, và PIN
-**không** nằm trong code — nó do người dùng nhập và chỉ lưu trên máy họ.
+trong code ai cũng đọc được. Vì vậy mọi yêu cầu đều phải kèm PIN đúng.
+
+PIN **không** nằm trong code ở cả hai phía:
+- Phía web: do người dùng nhập, chỉ lưu trên máy họ.
+- Phía Google: lưu trong **Script Properties**, đọc lúc chạy.
+
+Nhờ vậy đổi PIN chỉ cần sửa Script Properties, **có hiệu lực ngay, không phải
+deploy lại**. Nếu để PIN trong code thì sửa xong mà quên deploy phiên bản mới,
+PIN cũ vẫn dùng được mà không hề hay biết.
+
+Chưa đặt khoá `PIN` trong Script Properties thì Web App khoá hẳn, từ chối mọi
+yêu cầu — an toàn hơn là lỡ để lọt.
 
 Đây là mức bảo vệ hợp lý cho sổ chi tiêu gia đình, không phải mức dành cho dữ
 liệu tài chính nghiêm ngặt. Nếu cần chặt hơn thì phải chuyển sang hạ tầng có
