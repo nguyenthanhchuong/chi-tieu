@@ -517,6 +517,19 @@ body {
   color: #fff;
   padding: calc(env(safe-area-inset-top) + 18px) 20px 20px;
 }
+/* Nhãn nhận biết sổ, nằm ngay trên tổng tháng ở thanh tiêu đề.
+   Nền trắng mờ chứ không phải màu riêng: nếu về sau đổi tông app thì nhãn tự
+   hợp màu theo, không phải sửa hai chỗ. */
+.so-badge {
+  display: inline-block;
+  margin-bottom: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.22);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
 .month-label { display: block; font-size: 12.5px; opacity: 0.85; }
 .month-amount { display: block; font-size: 26px; font-weight: 700; letter-spacing: -0.02em; }
 .icon-btn {
