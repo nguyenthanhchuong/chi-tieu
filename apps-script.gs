@@ -5,7 +5,9 @@
  *  1. Tạo một Google Sheet mới, đặt tên tuỳ ý.
  *  2. Trong Sheet: Tiện ích mở rộng (Extensions) > Apps Script.
  *  3. Xoá hết code mẫu, dán toàn bộ file này vào.
- *  4. Sửa PIN bên dưới thành mã anh muốn.
+ *  4. Sửa PIN bên dưới thành mã riêng của anh — CHỈ sửa trong trình soạn thảo
+ *     Apps Script trên Google, KHÔNG ghi mã thật vào file này rồi push lên
+ *     GitHub, vì repo là public, ai cũng đọc được.
  *  5. Bấm Triển khai (Deploy) > Tuỳ chọn triển khai mới (New deployment)
  *     - Loại: Ứng dụng web (Web app)
  *     - Thực thi với tư cách (Execute as): Tôi (Me)
@@ -16,7 +18,7 @@
  * đều phải kèm đúng PIN nên người lạ có URL cũng không đọc/ghi được.
  */
 
-// >>> ĐỔI PIN NÀY <<<
+// >>> ĐỔI PIN NÀY (chỉ sửa trên Apps Script, đừng lưu mã thật vào repo) <<<
 const PIN = "DAT_MA_PIN_RIENG_CUA_ANH_O_DAY";
 
 const SHEET_NAME = "ChiTieu";
