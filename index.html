@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Sổ Chi Tiêu">
-<link rel="stylesheet" href="style.css?v=19">
+<link rel="stylesheet" href="style.css?v=20">
 </head>
 <body>
 
@@ -42,6 +42,9 @@
 
   <header class="topbar">
     <div class="month-total">
+      <!-- Nhãn nhận biết sổ. Có sổ cá nhân chạy song song trên cùng máy, ghi
+           nhầm khoản sang sổ kia thì phải vào tận Google Sheet sửa. -->
+      <span class="so-badge">GIA ĐÌNH</span>
       <span class="month-label" id="month-label">Tháng này</span>
       <span class="month-amount" id="month-amount">—</span>
     </div>
@@ -244,7 +247,7 @@
   <div class="toast" id="toast" hidden></div>
 </div>
 
-<script src="logic.js?v=19"></script>
-<script src="app.js?v=19"></script>
+<script src="logic.js?v=20"></script>
+<script src="app.js?v=20"></script>
 </body>
 </html>
