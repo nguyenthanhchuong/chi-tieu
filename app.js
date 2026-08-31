@@ -45,6 +45,9 @@ const $ = id => document.getElementById(id);
 const formatMoney = Logic.formatMoney;
 const parseAmount = Logic.parseAmount;
 const laKhoanThu = Logic.laKhoanThu;
+// Dùng laKhoanChi chứ ĐỪNG viết !laKhoanThu: loại Chuyển không phải Thu, nên
+// phủ định laKhoanThu sẽ gom luôn khoản chuyển lọ vào tổng chi.
+const laKhoanChi = Logic.laKhoanChi;
 const friendlyError = Logic.friendlyError;
 
 function showToast(message) {
@@ -92,7 +95,7 @@ function initNgay() {
 
 // ===== Gọi API =====
 // Tăng mỗi lần sửa app, hiển thị ở màn hình PIN để biết máy đang chạy bản nào.
-const APP_VERSION = "20";
+const APP_VERSION = "21";
 
 // ===== Nhật ký dò lỗi =====
 // Ghi vào localStorage nên còn nguyên kể cả khi trang tự nạp lại — đây là
@@ -323,7 +326,7 @@ function render() {
   const all = tatCaKhoan();
 
   const inMonth = all.filter(e => String(e.date || "").startsWith(month));
-  const tongChi = inMonth.filter(e => !laKhoanThu(e))
+  const tongChi = inMonth.filter(laKhoanChi)
     .reduce((s, e) => s + Number(e.amount || 0), 0);
   $("month-amount").textContent = formatMoney(tongChi) + " đ";
 
@@ -335,7 +338,7 @@ function render() {
   box.innerHTML = "";
   PAYERS.forEach(p => {
     const sum = inMonth
-      .filter(e => e.payer === p && !laKhoanThu(e))
+      .filter(e => e.payer === p && laKhoanChi(e))
       .reduce((s, e) => s + Number(e.amount || 0), 0);
     const card = document.createElement("div");
     card.className = "person-card";
