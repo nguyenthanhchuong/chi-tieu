@@ -834,6 +834,21 @@ test("tìm không dấu vẫn ra khoản có dấu", () => {
   bang(r[0].id, "a");
 });
 
+// Lỗi thật đã gặp: so khớp bằng includes() khiến tìm "an uong" ra cả khoản
+// "Lương tháng 8" — vì "thang" chứa "an" và "luong" chứa "uong".
+test("tìm 'an uong' KHÔNG được ra khoản Lương", () => {
+  const r = Logic.locKhoan(DS_TIM, { chu: "an uong" });
+  bang(r.some(e => e.category === "Lương"), false);
+});
+
+test("gõ thiếu vẫn ra: 'luon' tìm được Lương", () => {
+  bang(Logic.locKhoan(DS_TIM, { chu: "luon" }).length, 1);
+});
+
+test("tìm được danh mục có dấu gạch chéo", () => {
+  bang(Logic.locKhoan(DS_TIM, { chu: "cho" })[0].id, "c");
+});
+
 test("tìm theo ghi chú", () => {
   bang(Logic.locKhoan(DS_TIM, { chu: "com trua" })[0].id, "a");
 });

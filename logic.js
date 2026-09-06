@@ -487,10 +487,14 @@ const Logic = (function () {
       if (den && ngay > den) return false;
 
       if (chu) {
-        const gop = boDau([e.category, e.note, e.payer, e.jar, e.jarTo].join(" "));
-        // Tách từ khoá theo khoảng trắng, phải khớp hết mới tính
-        const tuKhoa = chu.split(/\s+/).filter(Boolean);
-        if (!tuKhoa.every(t => gop.includes(t))) return false;
+        // So khớp theo ĐẦU ÂM TIẾT, không phải chuỗi con bất kỳ.
+        // Lỗi thật đã gặp: dùng includes() thì tìm "an uong" lại ra khoản
+        // "Lương tháng 8", vì "thang" chứa "an" và "luong" chứa "uong".
+        const am = s => boDau(s).split(/[^a-z0-9]+/).filter(Boolean);
+        const kho = am([e.category, e.note, e.payer, e.jar, e.jarTo].join(" "));
+        const tuKhoa = am(chu);
+        // Mọi từ khoá đều phải là phần đầu của một âm tiết nào đó
+        if (!tuKhoa.every(t => kho.some(w => w.startsWith(t)))) return false;
       }
       return true;
     });
