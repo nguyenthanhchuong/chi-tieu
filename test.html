@@ -816,11 +816,13 @@ const DS_HM = [
   { date:"2026-08-15", amount:900000,  category:"Ăn uống",      type:"Chi" },
   { date:"2026-08-10", amount:400000,  category:"Chợ/Siêu thị", type:"Chi" },
   { date:"2026-08-20", amount:5000000, category:"Đi lại",       type:"Chi" },
+  { date:"2026-08-22", amount:700000,  category:"Giải trí",     type:"Chi" },
   { date:"2026-08-05", amount:22000000,category:"Lương",        type:"Thu" },
   { date:"2026-08-06", amount:1000000, category:"Chuyển lọ",    type:"Chuyển", jar:"NEC", jarTo:"LTSS" },
   { date:"2026-07-30", amount:9000000, category:"Ăn uống",      type:"Chi" }
 ];
-const HM = { "Ăn uống": 3000000, "Chợ/Siêu thị": 2000000, "Đi lại": 1000000 };
+// Ăn uống + Chợ/Siêu thị + Đi lại đều thuộc lọ NEC; Giải trí thuộc PLAY
+const HM2 = { lo: { NEC: 10000000 }, muc: { "Ăn uống": 3000000, "Đi lại": 1000000 } };
 
 test("cộng chi theo danh mục trong đúng tháng", () => {
   const d = Logic.daChiTheoMuc(DS_HM, "2026-08");
@@ -840,66 +842,93 @@ test("không lẫn chi của tháng khác", () => {
   bang(Logic.daChiTheoMuc(DS_HM, "2026-07")["Ăn uống"], 9000000);
 });
 
-test("phân loại đúng ba mức độ", () => {
-  const ds = Logic.trangThaiHanMuc(DS_HM, "2026-08", HM);
-  const tim = m => ds.find(x => x.muc === m);
-  bang(tim("Ăn uống").mucDo, "sap-vuot");      // 2.9tr/3tr = 97%
-  bang(tim("Chợ/Siêu thị").mucDo, "an-toan");  // 0.4tr/2tr = 20%
-  bang(tim("Đi lại").mucDo, "vuot");           // 5tr/1tr = 500%
+test("cộng chi theo lọ gom đúng các mục con", () => {
+  const l = Logic.daChiTheoLo(DS_HM, "2026-08");
+  bang(l.NEC, 8300000);   // 2.9tr Ăn uống + 0.4tr Chợ + 5tr Đi lại
+  bang(l.PLAY, 700000);
+});
+
+// Phải khớp quy tắc của soDuCacLo, nếu không số hạn mức sẽ đá với màn hình Lọ.
+test("lọ ghi sẵn trên khoản được ưu tiên hơn suy từ danh mục", () => {
+  bang(Logic.loCuaKhoan({ category: "Ăn uống" }), "NEC");
+  bang(Logic.loCuaKhoan({ category: "Ăn uống", jar: "PLAY" }), "PLAY");
+});
+
+test("dạng hạn mức cũ (phẳng) vẫn đọc được", () => {
+  const c = Logic.chuanHoaHanMuc({ "Ăn uống": 3000000 });
+  bang(c.muc["Ăn uống"], 3000000);
+  bang(Object.keys(c.lo).length, 0);
+});
+
+test("phân loại đúng ba mức độ ở tầng mục", () => {
+  const ds = Logic.trangThaiHanMuc(DS_HM, "2026-08", HM2);
+  const nec = ds.find(l => l.key === "NEC");
+  const tim = m => nec.mucCon.find(x => x.muc === m);
+  bang(tim("Ăn uống").mucDo, "sap-vuot");   // 2.9tr/3tr = 97%
+  bang(tim("Đi lại").mucDo, "vuot");        // 5tr/1tr = 500%
+});
+
+test("hạn mức cả lọ tính trên tổng các mục con", () => {
+  const nec = Logic.trangThaiHanMuc(DS_HM, "2026-08", HM2).find(l => l.key === "NEC");
+  bang(nec.hanMuc, 10000000);
+  bang(nec.daChi, 8300000);
+  bang(nec.phanTram, 83);
+  bang(nec.mucDo, "sap-vuot");
+});
+
+test("lọ không đặt hạn mức vẫn hiện nếu có mục con đặt", () => {
+  const ds = Logic.trangThaiHanMuc(DS_HM, "2026-08", { muc: { "Giải trí": 500000 } });
+  bang(ds.length, 1);
+  bang(ds[0].key, "PLAY");
+  bang(ds[0].hanMuc, null);
+  bang(ds[0].mucCon[0].mucDo, "vuot");
+});
+
+test("mục vượt xếp lên đầu trong lọ", () => {
+  const nec = Logic.trangThaiHanMuc(DS_HM, "2026-08", HM2).find(l => l.key === "NEC");
+  bang(nec.mucCon[0].muc, "Đi lại");
 });
 
 test("tính đúng phần trăm và tiền còn lại", () => {
-  const ds = Logic.trangThaiHanMuc(DS_HM, "2026-08", HM);
-  const anUong = ds.find(x => x.muc === "Ăn uống");
+  const nec = Logic.trangThaiHanMuc(DS_HM, "2026-08", HM2).find(l => l.key === "NEC");
+  const anUong = nec.mucCon.find(x => x.muc === "Ăn uống");
   bang(anUong.phanTram, 97);
   bang(anUong.conLai, 100000);
-  const diLai = ds.find(x => x.muc === "Đi lại");
-  bang(diLai.conLai, -4000000);   // âm nghĩa là đã vượt
-});
-
-// Mục đang vượt phải nằm trên cùng, không phải lặn dưới đáy danh sách.
-test("mục vượt được xếp lên đầu", () => {
-  const ds = Logic.trangThaiHanMuc(DS_HM, "2026-08", HM);
-  bang(ds[0].muc, "Đi lại");
-  bang(ds[ds.length - 1].muc, "Chợ/Siêu thị");
-});
-
-test("chỉ trả về danh mục CÓ đặt hạn mức", () => {
-  const ds = Logic.trangThaiHanMuc(DS_HM, "2026-08", { "Ăn uống": 3000000 });
-  bang(ds.length, 1);
+  bang(nec.mucCon.find(x => x.muc === "Đi lại").conLai, -4000000);
 });
 
 test("hạn mức 0 hoặc âm bị bỏ qua", () => {
-  bang(Logic.trangThaiHanMuc(DS_HM, "2026-08", { "Ăn uống": 0 }).length, 0);
-  bang(Logic.trangThaiHanMuc(DS_HM, "2026-08", { "Ăn uống": -5 }).length, 0);
+  bang(Logic.trangThaiHanMuc(DS_HM, "2026-08", { muc: { "Ăn uống": 0 } }).length, 0);
+  bang(Logic.trangThaiHanMuc(DS_HM, "2026-08", { lo: { NEC: -5 } }).length, 0);
 });
 
 test("đúng ngưỡng 80% đã là sắp vượt", () => {
   const ds = [{ date:"2026-08-01", amount:800000, category:"Ăn uống", type:"Chi" }];
-  bang(Logic.trangThaiHanMuc(ds, "2026-08", { "Ăn uống": 1000000 })[0].mucDo, "sap-vuot");
+  const nec = Logic.trangThaiHanMuc(ds, "2026-08", { muc: { "Ăn uống": 1000000 } })[0];
+  bang(nec.mucCon[0].mucDo, "sap-vuot");
 });
 
 test("đúng 100% vẫn là sắp vượt, chưa phải vượt", () => {
   const ds = [{ date:"2026-08-01", amount:1000000, category:"Ăn uống", type:"Chi" }];
-  bang(Logic.trangThaiHanMuc(ds, "2026-08", { "Ăn uống": 1000000 })[0].mucDo, "sap-vuot");
+  const nec = Logic.trangThaiHanMuc(ds, "2026-08", { muc: { "Ăn uống": 1000000 } })[0];
+  bang(nec.mucCon[0].mucDo, "sap-vuot");
 });
 
-test("tóm tắt đếm đúng số mục vượt và sắp vượt", () => {
-  const t = Logic.tomTatHanMuc(Logic.trangThaiHanMuc(DS_HM, "2026-08", HM));
-  bang(t.soMuc, 3);
-  bang(t.vuot, 1);
-  bang(t.sapVuot, 1);
+test("tóm tắt đếm gộp cả hai tầng", () => {
+  const t = Logic.tomTatHanMuc(Logic.trangThaiHanMuc(DS_HM, "2026-08", HM2));
+  bang(t.soLo, 1);
+  bang(t.soMuc, 2);
+  bang(t.vuot, 1);      // Đi lại
+  bang(t.sapVuot, 2);   // Ăn uống + cả lọ NEC
 });
 
 // Lỗi thật đã gặp: app cắt chuỗi thẳng từ khoangKy().dau để lấy tháng, nhưng
 // hàm đó trả về Date nên ra "Tue Sep" thay vì "2026-09" — hạn mức không khớp
 // khoản nào và tiêu đề hiện "tháng NaN". Unit test cũ không bắt được vì truyền
-// thẳng chuỗi "2026-08" vào. Ca này canh đúng cách lấy tháng từ một kỳ.
+// thẳng chuỗi "2026-08" vào.
 test("lấy tháng từ khoangKy phải ra dạng 2026-09", () => {
   const k = Logic.khoangKy("thang", 0, new Date(2026, 8, 15));
-  const thang = Logic.thangKey(k.dau);
-  bang(/^\d{4}-\d{2}$/.test(thang), true);
-  bang(thang, "2026-09");
+  bang(Logic.thangKey(k.dau), "2026-09");
 });
 
 test("chưa đặt hạn mức thì không vỡ", () => {

@@ -843,3 +843,55 @@ body {
 
 .hm-nhap { margin-bottom: 10px; }
 .hm-nhap .sheet-label { margin-bottom: 4px; }
+
+/* Hạn mức hai tầng: lọ ở ngoài, mục nhỏ thụt vào trong */
+.hm-lo {
+  padding-bottom: 12px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+.hm-lo:last-child { border-bottom: none; padding-bottom: 0; margin-bottom: 0; }
+
+/* Lọ không đặt hạn mức riêng: chỉ làm tiêu đề nhóm */
+.hm-nhomlo {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.hm-nhomlo .hm-ten { font-size: 13.5px; font-weight: 700; }
+.hm-daChi { font-size: 11px; color: var(--muted); }
+
+/* Mục con thụt vào, chữ nhỏ hơn để thấy rõ tầng */
+.hm-hang.la {
+  margin-left: 12px;
+  padding-left: 10px;
+  border-left: 2px solid var(--line);
+}
+.hm-hang.la .hm-ten { font-size: 12.5px; font-weight: 600; }
+
+/* Hộp nhập hạn mức */
+.hm-nhom {
+  padding-bottom: 14px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+}
+.hm-nhom:last-child { border-bottom: none; }
+.hm-nhom-dau {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.hm-nhom-ten { font-size: 14px; font-weight: 700; }
+.hm-nhom-tag {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--muted);
+  background: var(--bg);
+  border-radius: 8px;
+  padding: 2px 7px;
+}
+.hm-nhap.con { margin-left: 12px; }
+.hm-nhap.con .sheet-label { font-weight: 500; }
