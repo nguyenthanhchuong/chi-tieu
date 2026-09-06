@@ -458,6 +458,61 @@ const Logic = (function () {
     return "Có trục trặc, anh thử lại giúp nhé.";
   }
 
+  // ===== Hạn mức chi tiêu theo danh mục =====
+  // Khác với sáu lọ: lọ là CHIA TIỀN VÀO khi có thu, hạn mức là CHẶN TIỀN RA
+  // theo từng danh mục trong một tháng. Hai thứ bổ sung nhau, không trùng.
+  const NGUONG_SAP_VUOT = 0.8;   // từ 80% hạn mức trở lên là cảnh báo
+
+  // Tổng đã chi từng danh mục trong một tháng ("2026-08").
+  // Chỉ tính khoản chi thật; khoản thu và chuyển lọ không tính.
+  function daChiTheoMuc(danhSach, thang) {
+    const kq = {};
+    (danhSach || []).forEach(e => {
+      if (!laKhoanChi(e)) return;
+      if (thang && !String(e.date || "").startsWith(thang)) return;
+      const muc = e.category || "Khác";
+      kq[muc] = (kq[muc] || 0) + (Number(e.amount) || 0);
+    });
+    return kq;
+  }
+
+  // Ghép hạn mức với số đã chi. Chỉ trả về danh mục CÓ đặt hạn mức.
+  // Sắp xếp: vượt trước, rồi sắp vượt, rồi theo % giảm dần — để cái cần
+  // chú ý nhất nằm trên cùng.
+  function trangThaiHanMuc(danhSach, thang, hanMuc) {
+    const daChi = daChiTheoMuc(danhSach, thang);
+    const hm = hanMuc || {};
+    const ds = Object.keys(hm)
+      .filter(muc => Number(hm[muc]) > 0)
+      .map(muc => {
+        const mucHan = Number(hm[muc]);
+        const tien = daChi[muc] || 0;
+        const tiLe = tien / mucHan;
+        let mucDo = "an-toan";
+        if (tiLe > 1) mucDo = "vuot";
+        else if (tiLe >= NGUONG_SAP_VUOT) mucDo = "sap-vuot";
+        return {
+          muc, hanMuc: mucHan, daChi: tien,
+          conLai: mucHan - tien,
+          phanTram: Math.round(tiLe * 100),
+          mucDo
+        };
+      });
+
+    const thuTu = { "vuot": 0, "sap-vuot": 1, "an-toan": 2 };
+    ds.sort((a, b) => (thuTu[a.mucDo] - thuTu[b.mucDo]) || (b.phanTram - a.phanTram));
+    return ds;
+  }
+
+  // Tổng kết nhanh để hiện một dòng: bao nhiêu mục vượt / sắp vượt.
+  function tomTatHanMuc(ds) {
+    const vuot = (ds || []).filter(x => x.mucDo === "vuot").length;
+    const sapVuot = (ds || []).filter(x => x.mucDo === "sap-vuot").length;
+    const tongHan = (ds || []).reduce((s, x) => s + x.hanMuc, 0);
+    const tongChi = (ds || []).reduce((s, x) => s + x.daChi, 0);
+    return { soMuc: (ds || []).length, vuot, sapVuot, tongHan, tongChi };
+  }
+
   // ===== Tìm kiếm / lọc khoản =====
   // Bỏ dấu tiếng Việt để gõ "an uong" vẫn tìm ra "Ăn uống".
   function boDau(s) {
@@ -515,6 +570,7 @@ const Logic = (function () {
 
   return {
     boDau, locKhoan, tongKetLoc,
+    NGUONG_SAP_VUOT, daChiTheoMuc, trangThaiHanMuc, tomTatHanMuc,
     formatMoney, formatNgan, parseAmount, ngayKey, thangKey,
     chuoiThang, dienBienTheoThang, dienBienMuc,
     laKhoanThu, laChuyenLo, laKhoanChi,

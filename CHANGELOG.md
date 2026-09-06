@@ -22,6 +22,24 @@ Nếu đã cài app ra màn hình chính thì bấm **Tải lại bản mới** 
 
 ---
 
+## v24 — Hạn mức chi tiêu theo danh mục
+*Apps Script: không đổi*
+
+- Đặt **hạn mức mỗi tháng** cho từng danh mục chi (nút **Đặt hạn mức** trong
+  tab Thống kê)
+- Thanh tiến độ đổi màu theo mức độ: xanh (an toàn) → cam (từ 80% trở lên) →
+  đỏ (đã vượt), liếc là biết, không cần đọc số
+- Mục **đang vượt xếp lên đầu**, không để lặn dưới đáy danh sách
+- **Cảnh báo ngay lúc vừa ghi khoản** — đây mới là lúc nhắc có tác dụng, chứ
+  vào Thống kê xem thì tiền đã tiêu rồi
+- Chỉ hiện khi xem theo **Tháng**; xem tuần/quý/năm thì báo rõ lý do thay vì
+  ghép bừa ra số vô nghĩa
+- Khoản thu và khoản chuyển lọ **không** tính vào hạn mức
+- Hạn mức khác sáu lọ: lọ là *chia tiền vào* khi có thu, hạn mức là *chặn tiền
+  ra* theo danh mục — hai thứ bổ sung nhau
+- Dùng chung kho thiết lập với tỉ lệ lọ nên **không phải deploy lại Apps Script**
+- Số ca test: 155 → 167
+
 ## v23 — Tìm kiếm và lọc khoản
 *Apps Script: không đổi*
 

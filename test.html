@@ -809,6 +809,94 @@ test("KHÔNG để lọt mã lỗi kỹ thuật ra màn hình", () => {
 // ===================================================================
 // Hiển thị kết quả
 
+nhom("Hạn mức chi tiêu");
+
+const DS_HM = [
+  { date:"2026-08-01", amount:2000000, category:"Ăn uống",      type:"Chi" },
+  { date:"2026-08-15", amount:900000,  category:"Ăn uống",      type:"Chi" },
+  { date:"2026-08-10", amount:400000,  category:"Chợ/Siêu thị", type:"Chi" },
+  { date:"2026-08-20", amount:5000000, category:"Đi lại",       type:"Chi" },
+  { date:"2026-08-05", amount:22000000,category:"Lương",        type:"Thu" },
+  { date:"2026-08-06", amount:1000000, category:"Chuyển lọ",    type:"Chuyển", jar:"NEC", jarTo:"LTSS" },
+  { date:"2026-07-30", amount:9000000, category:"Ăn uống",      type:"Chi" }
+];
+const HM = { "Ăn uống": 3000000, "Chợ/Siêu thị": 2000000, "Đi lại": 1000000 };
+
+test("cộng chi theo danh mục trong đúng tháng", () => {
+  const d = Logic.daChiTheoMuc(DS_HM, "2026-08");
+  bang(d["Ăn uống"], 2900000);
+  bang(d["Chợ/Siêu thị"], 400000);
+});
+
+// Bài học cũ: khoản Chuyển từng bị gom nhầm vào chi.
+test("khoản thu và khoản chuyển KHÔNG tính vào hạn mức", () => {
+  const d = Logic.daChiTheoMuc(DS_HM, "2026-08");
+  bang(d["Lương"], undefined);
+  bang(d["Chuyển lọ"], undefined);
+});
+
+test("không lẫn chi của tháng khác", () => {
+  bang(Logic.daChiTheoMuc(DS_HM, "2026-08")["Ăn uống"], 2900000);
+  bang(Logic.daChiTheoMuc(DS_HM, "2026-07")["Ăn uống"], 9000000);
+});
+
+test("phân loại đúng ba mức độ", () => {
+  const ds = Logic.trangThaiHanMuc(DS_HM, "2026-08", HM);
+  const tim = m => ds.find(x => x.muc === m);
+  bang(tim("Ăn uống").mucDo, "sap-vuot");      // 2.9tr/3tr = 97%
+  bang(tim("Chợ/Siêu thị").mucDo, "an-toan");  // 0.4tr/2tr = 20%
+  bang(tim("Đi lại").mucDo, "vuot");           // 5tr/1tr = 500%
+});
+
+test("tính đúng phần trăm và tiền còn lại", () => {
+  const ds = Logic.trangThaiHanMuc(DS_HM, "2026-08", HM);
+  const anUong = ds.find(x => x.muc === "Ăn uống");
+  bang(anUong.phanTram, 97);
+  bang(anUong.conLai, 100000);
+  const diLai = ds.find(x => x.muc === "Đi lại");
+  bang(diLai.conLai, -4000000);   // âm nghĩa là đã vượt
+});
+
+// Mục đang vượt phải nằm trên cùng, không phải lặn dưới đáy danh sách.
+test("mục vượt được xếp lên đầu", () => {
+  const ds = Logic.trangThaiHanMuc(DS_HM, "2026-08", HM);
+  bang(ds[0].muc, "Đi lại");
+  bang(ds[ds.length - 1].muc, "Chợ/Siêu thị");
+});
+
+test("chỉ trả về danh mục CÓ đặt hạn mức", () => {
+  const ds = Logic.trangThaiHanMuc(DS_HM, "2026-08", { "Ăn uống": 3000000 });
+  bang(ds.length, 1);
+});
+
+test("hạn mức 0 hoặc âm bị bỏ qua", () => {
+  bang(Logic.trangThaiHanMuc(DS_HM, "2026-08", { "Ăn uống": 0 }).length, 0);
+  bang(Logic.trangThaiHanMuc(DS_HM, "2026-08", { "Ăn uống": -5 }).length, 0);
+});
+
+test("đúng ngưỡng 80% đã là sắp vượt", () => {
+  const ds = [{ date:"2026-08-01", amount:800000, category:"Ăn uống", type:"Chi" }];
+  bang(Logic.trangThaiHanMuc(ds, "2026-08", { "Ăn uống": 1000000 })[0].mucDo, "sap-vuot");
+});
+
+test("đúng 100% vẫn là sắp vượt, chưa phải vượt", () => {
+  const ds = [{ date:"2026-08-01", amount:1000000, category:"Ăn uống", type:"Chi" }];
+  bang(Logic.trangThaiHanMuc(ds, "2026-08", { "Ăn uống": 1000000 })[0].mucDo, "sap-vuot");
+});
+
+test("tóm tắt đếm đúng số mục vượt và sắp vượt", () => {
+  const t = Logic.tomTatHanMuc(Logic.trangThaiHanMuc(DS_HM, "2026-08", HM));
+  bang(t.soMuc, 3);
+  bang(t.vuot, 1);
+  bang(t.sapVuot, 1);
+});
+
+test("chưa đặt hạn mức thì không vỡ", () => {
+  bang(Logic.trangThaiHanMuc(DS_HM, "2026-08", {}).length, 0);
+  bang(Logic.trangThaiHanMuc(null, "2026-08", null).length, 0);
+  bang(Logic.tomTatHanMuc(null).soMuc, 0);
+});
+
 nhom("Tìm kiếm và lọc khoản");
 
 const DS_TIM = [

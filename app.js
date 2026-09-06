@@ -95,7 +95,7 @@ function initNgay() {
 
 // ===== Gọi API =====
 // Tăng mỗi lần sửa app, hiển thị ở màn hình PIN để biết máy đang chạy bản nào.
-const APP_VERSION = "23";
+const APP_VERSION = "24";
 
 // ===== Nhật ký dò lỗi =====
 // Ghi vào localStorage nên còn nguyên kể cả khi trang tự nạp lại — đây là
@@ -399,6 +399,151 @@ function render() {
 
   renderStats();
   renderJars();
+}
+
+// ===== Hạn mức chi tiêu =====
+let hanMuc = {};   // { "Ăn uống": 3000000, ... }, lấy từ Sheet cùng chỗ với tỉ lệ lọ
+
+function thangDangXem() {
+  // Hạn mức chỉ có nghĩa theo tháng, nên dùng đúng tháng đang chọn ở Thống kê.
+  const { dau } = Logic.khoangKy("thang", statOffset, new Date());
+  return String(dau).slice(0, 7);
+}
+
+function renderHanMuc() {
+  const box = $("hanmuc-block");
+  if (!box) return;
+
+  // Xem theo tuần/quý/năm thì ghép hạn mức tháng vào sẽ ra số vô nghĩa.
+  if (statMode !== "thang") {
+    box.innerHTML = `
+      <div class="stat-head">
+        <h3>Hạn mức chi</h3>
+        <button type="button" class="link-btn" id="btn-hanmuc">Đặt hạn mức</button>
+      </div>
+      <p class="hm-trong">Hạn mức tính theo tháng — chuyển sang mục <b>Tháng</b> để xem.</p>`;
+    ganNutHanMuc();
+    return;
+  }
+
+  const thang = thangDangXem();
+  const ds = Logic.trangThaiHanMuc(tatCaKhoan(), thang, hanMuc);
+  const tt = Logic.tomTatHanMuc(ds);
+
+  let than;
+  if (!ds.length) {
+    than = `<p class="hm-trong">Chưa đặt hạn mức nào. Đặt hạn mức cho vài danh mục
+            hay vượt (Ăn uống, Chợ/Siêu thị…) để app cảnh báo sớm.</p>`;
+  } else {
+    const canhBao = tt.vuot
+      ? `<p class="hm-tomtat vuot">${tt.vuot} mục đã vượt hạn mức</p>`
+      : (tt.sapVuot ? `<p class="hm-tomtat sap-vuot">${tt.sapVuot} mục sắp chạm hạn mức</p>` : "");
+
+    than = canhBao + ds.map(x => {
+      const rong = Math.min(100, x.phanTram);
+      const conLai = x.conLai >= 0
+        ? `còn ${formatMoney(x.conLai)}đ`
+        : `vượt ${formatMoney(-x.conLai)}đ`;
+      return `
+        <div class="hm-hang ${x.mucDo}">
+          <div class="hm-dong1">
+            <span class="hm-ten">${x.muc}</span>
+            <span class="hm-phantram">${x.phanTram}%</span>
+          </div>
+          <div class="hm-thanh"><span style="width:${rong}%"></span></div>
+          <div class="hm-dong2">
+            <span>${formatMoney(x.daChi)} / ${formatMoney(x.hanMuc)}đ</span>
+            <span class="hm-conlai">${conLai}</span>
+          </div>
+        </div>`;
+    }).join("");
+  }
+
+  box.innerHTML = `
+    <div class="stat-head">
+      <h3>Hạn mức tháng ${Number(thang.slice(5, 7))}</h3>
+      <button type="button" class="link-btn" id="btn-hanmuc">Đặt hạn mức</button>
+    </div>
+    ${than}`;
+  ganNutHanMuc();
+}
+
+function ganNutHanMuc() {
+  const n = $("btn-hanmuc");
+  if (n) n.addEventListener("click", moHopHanMuc);
+}
+
+function moHopHanMuc() {
+  const box = $("hanmuc-rows");
+  box.innerHTML = CATEGORIES_CHI.map(muc => `
+    <div class="hm-nhap">
+      <label class="sheet-label" for="hm-${muc}">${muc}</label>
+      <input type="text" class="note-input" id="hm-${muc}" data-muc="${muc}"
+             inputmode="numeric" placeholder="0"
+             value="${hanMuc[muc] ? formatMoney(hanMuc[muc]) : ""}">
+    </div>`).join("");
+
+  // Gõ tới đâu chấm phân cách tới đó cho dễ đọc số lớn
+  box.querySelectorAll("input").forEach(o => {
+    o.addEventListener("input", () => {
+      const v = parseAmount(o.value);
+      o.value = v ? formatMoney(v) : "";
+    });
+  });
+
+  $("hanmuc-error").hidden = true;
+  $("hanmuc-sheet").hidden = false;
+}
+
+async function luuHanMuc() {
+  const moi = {};
+  $("hanmuc-rows").querySelectorAll("input").forEach(o => {
+    const v = parseAmount(o.value);
+    if (v > 0) moi[o.dataset.muc] = v;
+  });
+
+  const nut = $("hanmuc-ok");
+  nut.disabled = true;
+  nut.textContent = "Đang lưu…";
+  try {
+    // ghiCaiDat bên Apps Script ghi theo TỪNG KHOÁ, nên gửi mỗi hanMuc
+    // không làm mất tỉ lệ lọ đang lưu.
+    await callApi("setSettings", { settings: { hanMuc: moi } }, { retries: 2 });
+    hanMuc = moi;
+    $("hanmuc-sheet").hidden = true;
+    showToast("Đã lưu hạn mức");
+    render();
+  } catch (err) {
+    $("hanmuc-error").textContent = friendlyError(err);
+    $("hanmuc-error").hidden = false;
+  } finally {
+    nut.disabled = false;
+    nut.textContent = "Lưu hạn mức";
+  }
+}
+
+// Cảnh báo ngay lúc vừa ghi xong — đây mới là lúc nhắc có tác dụng,
+// chứ vào Thống kê xem thì tiền đã tiêu rồi.
+function canhBaoSauKhiGhi(khoan) {
+  if (!khoan || !laKhoanChi(khoan)) return;
+  const muc = khoan.category;
+  if (!hanMuc[muc]) return;
+  const thang = String(khoan.date || "").slice(0, 7);
+  const ds = Logic.trangThaiHanMuc(tatCaKhoan(), thang, hanMuc);
+  const x = ds.find(t => t.muc === muc);
+  if (!x) return;
+  if (x.mucDo === "vuot") {
+    showToast(`⚠️ ${muc} đã vượt hạn mức ${formatMoney(-x.conLai)}đ`);
+  } else if (x.mucDo === "sap-vuot") {
+    showToast(`${muc} còn ${formatMoney(x.conLai)}đ là chạm hạn mức`);
+  }
+}
+
+function initHanMuc() {
+  if ($("hanmuc-cancel")) {
+    $("hanmuc-cancel").addEventListener("click", () => { $("hanmuc-sheet").hidden = true; });
+  }
+  if ($("hanmuc-ok")) $("hanmuc-ok").addEventListener("click", luuHanMuc);
 }
 
 // ===== Tìm kiếm khoản =====
@@ -712,6 +857,8 @@ function renderStats() {
 
   renderChartControls();
   veBieuDo();
+
+  renderHanMuc();
 
   veThanh($("stat-by-income"), "Thu theo nguồn", kq.theoNguonThu, "thu", "nguonThu");
   veThanh($("stat-by-cat"), "Chi theo danh mục", kq.theoDanhMuc, "chi", "danhMucChi");
@@ -1166,6 +1313,7 @@ async function napCaiDat() {
     const s = d.settings || {};
     if (s.tiLe && typeof s.tiLe === "object") tiLeLo = s.tiLe;
     if (s.loNhanDu) loNhanDu = s.loNhanDu;
+    if (s.hanMuc && typeof s.hanMuc === "object") hanMuc = s.hanMuc;
   } catch (err) {
     // Không lấy được thì dùng tỉ lệ mặc định, app vẫn chạy.
   }
@@ -1268,6 +1416,8 @@ async function saveEntry() {
     });
     entries.unshift(entry);
     showToast(`Đã lưu ${nhanLoai} ${formatMoney(amount)} đ`);
+    // Nhắc hạn mức ngay lúc vừa ghi, chờ 2 giây cho toast trước hiện xong
+    setTimeout(() => canhBaoSauKhiGhi(entry), 2000);
   } catch (err) {
     // Đã thử lại vẫn không được thì cất vào hàng chờ, không để mất dữ liệu.
     store.queue = [entry, ...store.queue];
@@ -1315,6 +1465,7 @@ function init() {
   initEdit();
   initNgay();
   initTim();
+  initHanMuc();
 
   // Vừa gõ vừa chấm phân cách nghìn cho dễ đọc
   $("amount").addEventListener("input", e => {

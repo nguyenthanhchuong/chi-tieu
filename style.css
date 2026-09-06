@@ -780,3 +780,66 @@ body {
     background: var(--bg);
   }
 }
+
+/* ===== Hạn mức chi tiêu ===== */
+.stat-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.stat-head h3 { font-size: 14px; font-weight: 700; color: var(--text); margin: 0; }
+
+.hm-trong {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.hm-tomtat {
+  font-size: 12px;
+  font-weight: 600;
+  margin: 0 0 10px;
+  padding: 7px 10px;
+  border-radius: 8px;
+}
+.hm-tomtat.vuot { color: var(--danger); background: var(--accent-soft); }
+.hm-tomtat.sap-vuot { color: #b45309; background: #fef3c7; }
+
+.hm-hang { margin-bottom: 12px; }
+.hm-hang:last-child { margin-bottom: 0; }
+
+.hm-dong1, .hm-dong2 {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.hm-ten { font-size: 13px; font-weight: 600; }
+.hm-phantram { font-size: 12px; font-weight: 700; color: var(--muted); }
+.hm-dong2 { font-size: 11px; color: var(--muted); margin-top: 3px; }
+
+/* Thanh tiến độ: màu đổi theo mức độ để liếc là biết, không cần đọc số */
+.hm-thanh {
+  height: 7px;
+  border-radius: 4px;
+  background: var(--line);
+  overflow: hidden;
+  margin-top: 5px;
+}
+.hm-thanh span {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  background: var(--thu);
+}
+.hm-hang.sap-vuot .hm-thanh span { background: #d97706; }
+.hm-hang.vuot .hm-thanh span { background: var(--danger); }
+.hm-hang.vuot .hm-phantram,
+.hm-hang.vuot .hm-conlai { color: var(--danger); }
+.hm-hang.sap-vuot .hm-phantram { color: #b45309; }
+
+.hm-nhap { margin-bottom: 10px; }
+.hm-nhap .sheet-label { margin-bottom: 4px; }
