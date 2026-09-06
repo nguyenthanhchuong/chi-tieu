@@ -891,6 +891,17 @@ test("tóm tắt đếm đúng số mục vượt và sắp vượt", () => {
   bang(t.sapVuot, 1);
 });
 
+// Lỗi thật đã gặp: app cắt chuỗi thẳng từ khoangKy().dau để lấy tháng, nhưng
+// hàm đó trả về Date nên ra "Tue Sep" thay vì "2026-09" — hạn mức không khớp
+// khoản nào và tiêu đề hiện "tháng NaN". Unit test cũ không bắt được vì truyền
+// thẳng chuỗi "2026-08" vào. Ca này canh đúng cách lấy tháng từ một kỳ.
+test("lấy tháng từ khoangKy phải ra dạng 2026-09", () => {
+  const k = Logic.khoangKy("thang", 0, new Date(2026, 8, 15));
+  const thang = Logic.thangKey(k.dau);
+  bang(/^\d{4}-\d{2}$/.test(thang), true);
+  bang(thang, "2026-09");
+});
+
 test("chưa đặt hạn mức thì không vỡ", () => {
   bang(Logic.trangThaiHanMuc(DS_HM, "2026-08", {}).length, 0);
   bang(Logic.trangThaiHanMuc(null, "2026-08", null).length, 0);
