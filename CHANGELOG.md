@@ -33,7 +33,7 @@ Nếu đã cài app ra màn hình chính thì bấm **Tải lại bản mới** 
 - Hiện **số khoản tìm được và tổng tiền** ngay dưới bảng lọc — con số này mới
   là thứ đáng xem, không phải chỉ danh sách
 - Đóng bảng tìm thì tự bỏ lọc, tránh tưởng sổ bị mất khoản
-- Số ca test: 140 → 153
+- Số ca test: 139 → 152
 
 ## v22 — Khoản Chuyển hiện rõ chiều chuyển lọ
 *Apps Script: không đổi*

@@ -808,35 +808,6 @@ test("KHÔNG để lọt mã lỗi kỹ thuật ra màn hình", () => {
 
 // ===================================================================
 // Hiển thị kết quả
-(function veKetQua() {
-  const dat = ketQua.filter(k => k.dat).length;
-  const hong = ketQua.length - dat;
-
-  const oTong = document.getElementById("tong");
-  oTong.className = "tong " + (hong === 0 ? "dat" : "hong");
-  oTong.textContent = hong === 0
-    ? `✓ ĐẠT TẤT CẢ — ${dat}/${ketQua.length} phép thử`
-    : `✕ HỎNG ${hong} — đạt ${dat}/${ketQua.length}`;
-
-  const cacNhom = [];
-  ketQua.forEach(k => {
-    let n = cacNhom.find(x => x.ten === k.nhom);
-    if (!n) { n = { ten: k.nhom, ds: [] }; cacNhom.push(n); }
-    n.ds.push(k);
-  });
-
-  document.getElementById("kq").innerHTML = cacNhom.map(n => `
-    <div class="nhom">
-      <h2>${n.ten}</h2>
-      ${n.ds.map(k => `
-        <div class="ca">
-          <span class="${k.dat ? "ok" : "no"}">${k.dat ? "✓" : "✕"}</span>
-          ${k.ten}
-          ${k.dat ? "" : `<div class="chitiet">${k.loi}</div>`}
-        </div>`).join("")}
-    </div>`).join("");
-})();
-
 
 nhom("Tìm kiếm và lọc khoản");
 
@@ -911,6 +882,35 @@ test("danh sách rỗng không làm vỡ", () => {
   bang(Logic.locKhoan(null, { chu: "abc" }).length, 0);
   bang(Logic.tongKetLoc(null).soKhoan, 0);
 });
+
+(function veKetQua() {
+  const dat = ketQua.filter(k => k.dat).length;
+  const hong = ketQua.length - dat;
+
+  const oTong = document.getElementById("tong");
+  oTong.className = "tong " + (hong === 0 ? "dat" : "hong");
+  oTong.textContent = hong === 0
+    ? `✓ ĐẠT TẤT CẢ — ${dat}/${ketQua.length} phép thử`
+    : `✕ HỎNG ${hong} — đạt ${dat}/${ketQua.length}`;
+
+  const cacNhom = [];
+  ketQua.forEach(k => {
+    let n = cacNhom.find(x => x.ten === k.nhom);
+    if (!n) { n = { ten: k.nhom, ds: [] }; cacNhom.push(n); }
+    n.ds.push(k);
+  });
+
+  document.getElementById("kq").innerHTML = cacNhom.map(n => `
+    <div class="nhom">
+      <h2>${n.ten}</h2>
+      ${n.ds.map(k => `
+        <div class="ca">
+          <span class="${k.dat ? "ok" : "no"}">${k.dat ? "✓" : "✕"}</span>
+          ${k.ten}
+          ${k.dat ? "" : `<div class="chitiet">${k.loi}</div>`}
+        </div>`).join("")}
+    </div>`).join("");
+})();
 
 }  // hết chayToanBo
 
