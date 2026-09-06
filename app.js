@@ -95,7 +95,7 @@ function initNgay() {
 
 // ===== Gọi API =====
 // Tăng mỗi lần sửa app, hiển thị ở màn hình PIN để biết máy đang chạy bản nào.
-const APP_VERSION = "22";
+const APP_VERSION = "23";
 
 // ===== Nhật ký dò lỗi =====
 // Ghi vào localStorage nên còn nguyên kể cả khi trang tự nạp lại — đây là
@@ -347,11 +347,19 @@ function render() {
     box.appendChild(card);
   });
 
-  // Danh sách gần đây
+  // Danh sách gần đây — hoặc kết quả tìm kiếm nếu anh đang lọc
   const list = $("recent-list");
-  const recent = all.slice(0, 25);
+  const dangLoc = coDieuKienLoc();
+  const ketQua = dangLoc ? Logic.locKhoan(all, docDieuKienLoc()) : all;
+  const recent = dangLoc ? ketQua.slice(0, 200) : ketQua.slice(0, 25);
+
+  $("recent-title").textContent = dangLoc ? "Kết quả tìm" : "Gần đây";
+  capNhatKetQuaLoc(ketQua, recent.length);
+
   if (!recent.length) {
-    list.innerHTML = '<p class="empty">Chưa có khoản nào.</p>';
+    list.innerHTML = dangLoc
+      ? '<p class="empty">Không tìm thấy khoản nào khớp.</p>'
+      : '<p class="empty">Chưa có khoản nào.</p>';
   } else {
     list.innerHTML = "";
     recent.forEach(e => {
@@ -391,6 +399,90 @@ function render() {
 
   renderStats();
   renderJars();
+}
+
+// ===== Tìm kiếm khoản =====
+const LOAI_LOC = [
+  { key: "tat-ca", ten: "Tất cả" },
+  { key: "chi",    ten: "Chi" },
+  { key: "thu",    ten: "Thu" },
+  { key: "chuyen", ten: "Chuyển" }
+];
+let loaiLocDangChon = "tat-ca";
+
+function docDieuKienLoc() {
+  return {
+    chu: ($("tim-chu") && $("tim-chu").value) || "",
+    loai: loaiLocDangChon,
+    tu: ($("tim-tu") && $("tim-tu").value) || "",
+    den: ($("tim-den") && $("tim-den").value) || ""
+  };
+}
+
+function coDieuKienLoc() {
+  const d = docDieuKienLoc();
+  return !!(d.chu.trim() || d.tu || d.den || d.loai !== "tat-ca");
+}
+
+// Hiện số khoản tìm được và tổng tiền — con số này mới là thứ đáng xem,
+// chứ không phải chỉ danh sách.
+function capNhatKetQuaLoc(ketQua, soHien) {
+  const o = $("tim-ketqua");
+  if (!o) return;
+  if (!coDieuKienLoc()) { o.textContent = ""; return; }
+  const t = Logic.tongKetLoc(ketQua);
+  const phan = [`${t.soKhoan} khoản`];
+  if (t.chi) phan.push(`chi ${formatMoney(t.chi)}đ`);
+  if (t.thu) phan.push(`thu ${formatMoney(t.thu)}đ`);
+  if (t.chuyen) phan.push(`chuyển ${formatMoney(t.chuyen)}đ`);
+  if (soHien < t.soKhoan) phan.push(`(hiện ${soHien})`);
+  o.textContent = phan.join(" · ");
+}
+
+function renderChipLoc() {
+  const box = $("tim-loai");
+  if (!box) return;
+  box.innerHTML = LOAI_LOC.map(l =>
+    `<button type="button" class="chip${l.key === loaiLocDangChon ? " on" : ""}" data-loai="${l.key}">${l.ten}</button>`
+  ).join("");
+  box.querySelectorAll(".chip").forEach(b => {
+    b.addEventListener("click", () => {
+      loaiLocDangChon = b.dataset.loai;
+      renderChipLoc();
+      render();
+    });
+  });
+}
+
+function xoaLoc() {
+  if ($("tim-chu")) $("tim-chu").value = "";
+  if ($("tim-tu")) $("tim-tu").value = "";
+  if ($("tim-den")) $("tim-den").value = "";
+  loaiLocDangChon = "tat-ca";
+  renderChipLoc();
+  render();
+}
+
+function initTim() {
+  const nut = $("btn-tim");
+  const box = $("tim-box");
+  if (!nut || !box) return;
+  renderChipLoc();
+
+  nut.addEventListener("click", () => {
+    box.hidden = !box.hidden;
+    nut.textContent = box.hidden ? "Tìm khoản" : "Đóng tìm";
+    if (!box.hidden && $("tim-chu")) $("tim-chu").focus();
+    // Đóng bảng tìm thì bỏ luôn bộ lọc, tránh anh tưởng sổ mất khoản
+    if (box.hidden && coDieuKienLoc()) xoaLoc();
+  });
+
+  let hen;
+  const goTim = () => { clearTimeout(hen); hen = setTimeout(render, 250); };
+  if ($("tim-chu")) $("tim-chu").addEventListener("input", goTim);
+  if ($("tim-tu")) $("tim-tu").addEventListener("change", render);
+  if ($("tim-den")) $("tim-den").addEventListener("change", render);
+  if ($("btn-xoa-tim")) $("btn-xoa-tim").addEventListener("click", xoaLoc);
 }
 
 // ===== Thống kê =====
@@ -1222,6 +1314,7 @@ function init() {
   initJars();
   initEdit();
   initNgay();
+  initTim();
 
   // Vừa gõ vừa chấm phân cách nghìn cho dễ đọc
   $("amount").addEventListener("input", e => {
