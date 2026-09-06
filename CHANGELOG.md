@@ -22,7 +22,7 @@ Nếu đã cài app ra màn hình chính thì bấm **Tải lại bản mới** 
 
 ---
 
-## v24 — Hạn mức chi tiêu theo danh mục
+## v25 — Hạn mức chi tiêu theo danh mục
 *Apps Script: không đổi*
 
 - Đặt **hạn mức mỗi tháng** cho từng danh mục chi (nút **Đặt hạn mức** trong
@@ -39,6 +39,10 @@ Nếu đã cài app ra màn hình chính thì bấm **Tải lại bản mới** 
   ra* theo danh mục — hai thứ bổ sung nhau
 - Dùng chung kho thiết lập với tỉ lệ lọ nên **không phải deploy lại Apps Script**
 - Số ca test: 155 → 169
+- Sửa trong lúc phát triển: `khoangKy` trả về Date chứ không phải chuỗi, cắt
+  chuỗi thẳng ra "Tue Sep" nên hạn mức không khớp khoản nào
+
+> Bản v24 đã đẩy lên nhưng có lỗi tháng nói trên, anh dùng thẳng v25.
 
 ## v23 — Tìm kiếm và lọc khoản
 *Apps Script: không đổi*
