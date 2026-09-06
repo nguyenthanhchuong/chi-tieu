@@ -38,7 +38,7 @@ Nếu đã cài app ra màn hình chính thì bấm **Tải lại bản mới** 
 - Hạn mức khác sáu lọ: lọ là *chia tiền vào* khi có thu, hạn mức là *chặn tiền
   ra* theo danh mục — hai thứ bổ sung nhau
 - Dùng chung kho thiết lập với tỉ lệ lọ nên **không phải deploy lại Apps Script**
-- Số ca test: 155 → 167
+- Số ca test: 155 → 169
 
 ## v23 — Tìm kiếm và lọc khoản
 *Apps Script: không đổi*

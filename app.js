@@ -406,8 +406,10 @@ let hanMuc = {};   // { "Ăn uống": 3000000, ... }, lấy từ Sheet cùng ch�
 
 function thangDangXem() {
   // Hạn mức chỉ có nghĩa theo tháng, nên dùng đúng tháng đang chọn ở Thống kê.
+  // khoangKy trả về đối tượng Date, KHÔNG phải chuỗi — cắt chuỗi thẳng sẽ ra
+  // "Tue Sep" thay vì "2026-09", làm hạn mức không khớp khoản nào.
   const { dau } = Logic.khoangKy("thang", statOffset, new Date());
-  return String(dau).slice(0, 7);
+  return Logic.thangKey(dau);
 }
 
 function renderHanMuc() {
