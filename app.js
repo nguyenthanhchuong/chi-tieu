@@ -95,7 +95,7 @@ function initNgay() {
 
 // ===== Gọi API =====
 // Tăng mỗi lần sửa app, hiển thị ở màn hình PIN để biết máy đang chạy bản nào.
-const APP_VERSION = "25";
+const APP_VERSION = "26";
 
 // ===== Nhật ký dò lỗi =====
 // Ghi vào localStorage nên còn nguyên kể cả khi trang tự nạp lại — đây là
@@ -432,32 +432,45 @@ function renderHanMuc() {
   const ds = Logic.trangThaiHanMuc(tatCaKhoan(), thang, hanMuc);
   const tt = Logic.tomTatHanMuc(ds);
 
+  // Một dòng hạn mức (dùng chung cho cả lọ và mục con)
+  const veDong = (x, la) => {
+    const rong = Math.min(100, x.phanTram);
+    const conLai = x.conLai >= 0
+      ? `còn ${formatMoney(x.conLai)}đ`
+      : `vượt ${formatMoney(-x.conLai)}đ`;
+    return `
+      <div class="hm-hang ${x.mucDo}${la ? " la" : ""}">
+        <div class="hm-dong1">
+          <span class="hm-ten">${x.ten}</span>
+          <span class="hm-phantram">${x.phanTram}%</span>
+        </div>
+        <div class="hm-thanh"><span style="width:${rong}%"></span></div>
+        <div class="hm-dong2">
+          <span>${formatMoney(x.daChi)} / ${formatMoney(x.hanMuc)}đ</span>
+          <span class="hm-conlai">${conLai}</span>
+        </div>
+      </div>`;
+  };
+
   let than;
   if (!ds.length) {
-    than = `<p class="hm-trong">Chưa đặt hạn mức nào. Đặt hạn mức cho vài danh mục
-            hay vượt (Ăn uống, Chợ/Siêu thị…) để app cảnh báo sớm.</p>`;
+    than = `<p class="hm-trong">Chưa đặt hạn mức nào. Đặt hạn mức cho cả lọ
+            (vd Thiết yếu) và cho mục nhỏ bên trong (vd Ăn uống) để app cảnh báo sớm.</p>`;
   } else {
     const canhBao = tt.vuot
-      ? `<p class="hm-tomtat vuot">${tt.vuot} mục đã vượt hạn mức</p>`
-      : (tt.sapVuot ? `<p class="hm-tomtat sap-vuot">${tt.sapVuot} mục sắp chạm hạn mức</p>` : "");
+      ? `<p class="hm-tomtat vuot">${tt.vuot} mức đã bị vượt</p>`
+      : (tt.sapVuot ? `<p class="hm-tomtat sap-vuot">${tt.sapVuot} mức sắp chạm trần</p>` : "");
 
-    than = canhBao + ds.map(x => {
-      const rong = Math.min(100, x.phanTram);
-      const conLai = x.conLai >= 0
-        ? `còn ${formatMoney(x.conLai)}đ`
-        : `vượt ${formatMoney(-x.conLai)}đ`;
-      return `
-        <div class="hm-hang ${x.mucDo}">
-          <div class="hm-dong1">
-            <span class="hm-ten">${x.muc}</span>
-            <span class="hm-phantram">${x.phanTram}%</span>
-          </div>
-          <div class="hm-thanh"><span style="width:${rong}%"></span></div>
-          <div class="hm-dong2">
-            <span>${formatMoney(x.daChi)} / ${formatMoney(x.hanMuc)}đ</span>
-            <span class="hm-conlai">${conLai}</span>
-          </div>
-        </div>`;
+    than = canhBao + ds.map(lo => {
+      // Lọ có đặt hạn mức thì vẽ thanh; không đặt thì chỉ làm tiêu đề nhóm
+      const dauLo = lo.hanMuc
+        ? veDong(lo, false)
+        : `<div class="hm-nhomlo">
+             <span class="hm-ten">${lo.ten}</span>
+             <span class="hm-daChi">đã chi ${formatMoney(lo.daChi)}đ</span>
+           </div>`;
+      const con = lo.mucCon.map(m => veDong(m, true)).join("");
+      return `<div class="hm-lo">${dauLo}${con}</div>`;
     }).join("");
   }
 
@@ -477,12 +490,31 @@ function ganNutHanMuc() {
 
 function moHopHanMuc() {
   const box = $("hanmuc-rows");
-  box.innerHTML = CATEGORIES_CHI.map(muc => `
-    <div class="hm-nhap">
-      <label class="sheet-label" for="hm-${muc}">${muc}</label>
-      <input type="text" class="note-input" id="hm-${muc}" data-muc="${muc}"
-             inputmode="numeric" placeholder="0"
-             value="${hanMuc[muc] ? formatMoney(hanMuc[muc]) : ""}">
+  const hm = Logic.chuanHoaHanMuc(hanMuc);
+
+  // Gom danh mục chi theo lọ để anh thấy rõ mục nào nằm trong lọ nào
+  const theoLo = {};
+  CATEGORIES_CHI.forEach(muc => {
+    const k = Logic.doanLo(muc);
+    (theoLo[k] = theoLo[k] || []).push(muc);
+  });
+
+  box.innerHTML = Logic.LOS.filter(lo => theoLo[lo.key]).map(lo => `
+    <div class="hm-nhom">
+      <div class="hm-nhom-dau">
+        <span class="hm-nhom-ten">${lo.ten}</span>
+        <span class="hm-nhom-tag">cả lọ</span>
+      </div>
+      <input type="text" class="note-input" data-lo="${lo.key}"
+             inputmode="numeric" placeholder="Không đặt"
+             value="${hm.lo[lo.key] ? formatMoney(hm.lo[lo.key]) : ""}">
+      ${theoLo[lo.key].map(muc => `
+        <div class="hm-nhap con">
+          <label class="sheet-label">${muc}</label>
+          <input type="text" class="note-input" data-muc="${muc}"
+                 inputmode="numeric" placeholder="Không đặt"
+                 value="${hm.muc[muc] ? formatMoney(hm.muc[muc]) : ""}">
+        </div>`).join("")}
     </div>`).join("");
 
   // Gõ tới đâu chấm phân cách tới đó cho dễ đọc số lớn
@@ -498,10 +530,12 @@ function moHopHanMuc() {
 }
 
 async function luuHanMuc() {
-  const moi = {};
+  const moi = { lo: {}, muc: {} };
   $("hanmuc-rows").querySelectorAll("input").forEach(o => {
     const v = parseAmount(o.value);
-    if (v > 0) moi[o.dataset.muc] = v;
+    if (!(v > 0)) return;
+    if (o.dataset.lo) moi.lo[o.dataset.lo] = v;
+    else if (o.dataset.muc) moi.muc[o.dataset.muc] = v;
   });
 
   const nut = $("hanmuc-ok");
@@ -528,16 +562,22 @@ async function luuHanMuc() {
 // chứ vào Thống kê xem thì tiền đã tiêu rồi.
 function canhBaoSauKhiGhi(khoan) {
   if (!khoan || !laKhoanChi(khoan)) return;
-  const muc = khoan.category;
-  if (!hanMuc[muc]) return;
   const thang = String(khoan.date || "").slice(0, 7);
+  const loKey = Logic.loCuaKhoan(khoan);
   const ds = Logic.trangThaiHanMuc(tatCaKhoan(), thang, hanMuc);
-  const x = ds.find(t => t.muc === muc);
-  if (!x) return;
+  const lo = ds.find(l => l.key === loKey);
+  if (!lo) return;
+
+  // Ưu tiên báo mục nhỏ (cụ thể hơn), không có thì báo cả lọ.
+  const mucCon = (lo.mucCon || []).find(m => m.muc === khoan.category);
+  const x = (mucCon && mucCon.mucDo !== "an-toan") ? mucCon
+          : (lo.hanMuc && lo.mucDo !== "an-toan" ? lo : mucCon);
+  if (!x || x.mucDo === "an-toan") return;
+
   if (x.mucDo === "vuot") {
-    showToast(`⚠️ ${muc} đã vượt hạn mức ${formatMoney(-x.conLai)}đ`);
-  } else if (x.mucDo === "sap-vuot") {
-    showToast(`${muc} còn ${formatMoney(x.conLai)}đ là chạm hạn mức`);
+    showToast(`⚠️ ${x.ten} đã vượt hạn mức ${formatMoney(-x.conLai)}đ`);
+  } else {
+    showToast(`${x.ten} còn ${formatMoney(x.conLai)}đ là chạm hạn mức`);
   }
 }
 

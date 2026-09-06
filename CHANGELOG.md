@@ -22,27 +22,30 @@ Nếu đã cài app ra màn hình chính thì bấm **Tải lại bản mới** 
 
 ---
 
-## v25 — Hạn mức chi tiêu theo danh mục
+## v26 — Hạn mức hai tầng: theo lọ và theo mục nhỏ
 *Apps Script: không đổi*
 
-- Đặt **hạn mức mỗi tháng** cho từng danh mục chi (nút **Đặt hạn mức** trong
-  tab Thống kê)
+- Đặt **hạn mức mỗi tháng** ở **hai tầng**: cho cả lọ (vd Thiết yếu) và cho
+  mục nhỏ bên trong (vd Ăn uống). Nút **Đặt hạn mức** trong tab Thống kê.
+- Hiển thị lồng nhau: lọ ở ngoài, mục con thụt vào — thấy ngay mục nào đang
+  kéo cả lọ vượt trần
+- Lọ chưa đặt hạn mức riêng vẫn hiện làm tiêu đề nhóm nếu có mục con đặt
 - Thanh tiến độ đổi màu theo mức độ: xanh (an toàn) → cam (từ 80% trở lên) →
   đỏ (đã vượt), liếc là biết, không cần đọc số
-- Mục **đang vượt xếp lên đầu**, không để lặn dưới đáy danh sách
-- **Cảnh báo ngay lúc vừa ghi khoản** — đây mới là lúc nhắc có tác dụng, chứ
-  vào Thống kê xem thì tiền đã tiêu rồi
-- Chỉ hiện khi xem theo **Tháng**; xem tuần/quý/năm thì báo rõ lý do thay vì
-  ghép bừa ra số vô nghĩa
+- Mục vượt xếp lên đầu, không để lặn dưới đáy danh sách
+- **Cảnh báo ngay lúc vừa ghi khoản** — ưu tiên báo mục nhỏ (cụ thể hơn),
+  không có thì báo cả lọ. Đây mới là lúc nhắc có tác dụng, chứ vào Thống kê
+  xem thì tiền đã tiêu rồi.
+- Quy khoản về lọ theo đúng quy tắc của màn hình Lọ (`e.jar` có sẵn thì dùng,
+  không thì suy từ danh mục) để hai màn hình không đá số nhau
+- Chỉ hiện khi xem theo **Tháng**; xem tuần/quý/năm thì báo rõ lý do
 - Khoản thu và khoản chuyển lọ **không** tính vào hạn mức
-- Hạn mức khác sáu lọ: lọ là *chia tiền vào* khi có thu, hạn mức là *chặn tiền
-  ra* theo danh mục — hai thứ bổ sung nhau
+- Đọc được cả dạng hạn mức phẳng cũ, không vỡ dữ liệu đã lưu
 - Dùng chung kho thiết lập với tỉ lệ lọ nên **không phải deploy lại Apps Script**
-- Số ca test: 155 → 169
-- Sửa trong lúc phát triển: `khoangKy` trả về Date chứ không phải chuỗi, cắt
-  chuỗi thẳng ra "Tue Sep" nên hạn mức không khớp khoản nào
+- Số ca test: 155 → 174
 
-> Bản v24 đã đẩy lên nhưng có lỗi tháng nói trên, anh dùng thẳng v25.
+> Hai bản v24 và v25 là các bước trung gian của tính năng này (v24 có lỗi lấy
+> sai tháng, v25 sửa lỗi đó). Anh dùng thẳng v26.
 
 ## v23 — Tìm kiếm và lọc khoản
 *Apps Script: không đổi*

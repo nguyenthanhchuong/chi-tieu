@@ -476,41 +476,102 @@ const Logic = (function () {
     return kq;
   }
 
-  // Ghép hạn mức với số đã chi. Chỉ trả về danh mục CÓ đặt hạn mức.
-  // Sắp xếp: vượt trước, rồi sắp vượt, rồi theo % giảm dần — để cái cần
-  // chú ý nhất nằm trên cùng.
-  function trangThaiHanMuc(danhSach, thang, hanMuc) {
-    const daChi = daChiTheoMuc(danhSach, thang);
-    const hm = hanMuc || {};
-    const ds = Object.keys(hm)
-      .filter(muc => Number(hm[muc]) > 0)
-      .map(muc => {
-        const mucHan = Number(hm[muc]);
-        const tien = daChi[muc] || 0;
-        const tiLe = tien / mucHan;
-        let mucDo = "an-toan";
-        if (tiLe > 1) mucDo = "vuot";
-        else if (tiLe >= NGUONG_SAP_VUOT) mucDo = "sap-vuot";
-        return {
-          muc, hanMuc: mucHan, daChi: tien,
-          conLai: mucHan - tien,
-          phanTram: Math.round(tiLe * 100),
-          mucDo
-        };
-      });
+  // Lọ mà một khoản chi thuộc về. Dùng ĐÚNG quy tắc của soDuCacLo:
+  // ưu tiên lọ đã ghi trên khoản, không có thì suy từ danh mục — nếu khác
+  // nhau thì con số hạn mức sẽ đá với màn hình Lọ.
+  function loCuaKhoan(e) {
+    return e.jar || doanLo(e.category);
+  }
 
+  // Tổng đã chi từng LỌ trong một tháng.
+  function daChiTheoLo(danhSach, thang) {
+    const kq = {};
+    (danhSach || []).forEach(e => {
+      if (!laKhoanChi(e)) return;
+      if (thang && !String(e.date || "").startsWith(thang)) return;
+      const lo = loCuaKhoan(e);
+      kq[lo] = (kq[lo] || 0) + (Number(e.amount) || 0);
+    });
+    return kq;
+  }
+
+  // Hạn mức có hai tầng: theo lọ và theo mục nhỏ trong lọ.
+  // Chấp nhận cả dạng cũ (phẳng theo danh mục) để không vỡ dữ liệu đã lưu.
+  function chuanHoaHanMuc(hm) {
+    if (!hm || typeof hm !== "object") return { lo: {}, muc: {} };
+    if (hm.lo || hm.muc) return { lo: hm.lo || {}, muc: hm.muc || {} };
+    return { lo: {}, muc: hm };
+  }
+
+  function mucDoHanMuc(daChi, han) {
+    const tiLe = daChi / han;
+    if (tiLe > 1) return "vuot";
+    if (tiLe >= NGUONG_SAP_VUOT) return "sap-vuot";
+    return "an-toan";
+  }
+
+  function motDong(ten, han, daChi) {
+    return {
+      ten, hanMuc: han, daChi,
+      conLai: han - daChi,
+      phanTram: Math.round((daChi / han) * 100),
+      mucDo: mucDoHanMuc(daChi, han)
+    };
+  }
+
+  // Trả về danh sách LỌ, mỗi lọ kèm các mục con có đặt hạn mức.
+  // Lọ được hiện nếu bản thân nó có hạn mức HOẶC có mục con đặt hạn mức.
+  // Sắp xếp: vượt trước, rồi sắp vượt — cái cần chú ý nằm trên cùng.
+  function trangThaiHanMuc(danhSach, thang, hanMucTho) {
+    const hm = chuanHoaHanMuc(hanMucTho);
+    const chiMuc = daChiTheoMuc(danhSach, thang);
+    const chiLo = daChiTheoLo(danhSach, thang);
     const thuTu = { "vuot": 0, "sap-vuot": 1, "an-toan": 2 };
-    ds.sort((a, b) => (thuTu[a.mucDo] - thuTu[b.mucDo]) || (b.phanTram - a.phanTram));
+
+    const canHien = new Set();
+    Object.keys(hm.lo).forEach(k => { if (Number(hm.lo[k]) > 0) canHien.add(k); });
+    Object.keys(hm.muc).forEach(m => { if (Number(hm.muc[m]) > 0) canHien.add(doanLo(m)); });
+
+    const ds = [...canHien].map(loKey => {
+      const lo = timLo(loKey) || { key: loKey, ten: loKey };
+      const hanLo = Number(hm.lo[loKey]) > 0 ? Number(hm.lo[loKey]) : null;
+      const daChiLo = chiLo[loKey] || 0;
+
+      const mucCon = Object.keys(hm.muc)
+        .filter(m => Number(hm.muc[m]) > 0 && doanLo(m) === loKey)
+        .map(m => Object.assign(motDong(m, Number(hm.muc[m]), chiMuc[m] || 0), { muc: m }))
+        .sort((a, b) => (thuTu[a.mucDo] - thuTu[b.mucDo]) || (b.phanTram - a.phanTram));
+
+      const dong = hanLo
+        ? Object.assign(motDong(lo.ten, hanLo, daChiLo), { key: loKey, mucCon })
+        : { key: loKey, ten: lo.ten, hanMuc: null, daChi: daChiLo,
+            conLai: null, phanTram: null, mucDo: null, mucCon };
+      return dong;
+    });
+
+    // Lọ không đặt hạn mức riêng thì xếp theo mục con nặng nhất của nó
+    const hangCuaLo = x => x.mucDo ? thuTu[x.mucDo]
+      : (x.mucCon.length ? thuTu[x.mucCon[0].mucDo] : 3);
+    ds.sort((a, b) => (hangCuaLo(a) - hangCuaLo(b)) || ((b.phanTram || 0) - (a.phanTram || 0)));
     return ds;
   }
 
-  // Tổng kết nhanh để hiện một dòng: bao nhiêu mục vượt / sắp vượt.
+  // Đếm gộp cả hai tầng để hiện một dòng tóm tắt.
   function tomTatHanMuc(ds) {
-    const vuot = (ds || []).filter(x => x.mucDo === "vuot").length;
-    const sapVuot = (ds || []).filter(x => x.mucDo === "sap-vuot").length;
-    const tongHan = (ds || []).reduce((s, x) => s + x.hanMuc, 0);
-    const tongChi = (ds || []).reduce((s, x) => s + x.daChi, 0);
-    return { soMuc: (ds || []).length, vuot, sapVuot, tongHan, tongChi };
+    let vuot = 0, sapVuot = 0, soLo = 0, soMuc = 0;
+    (ds || []).forEach(lo => {
+      if (lo.hanMuc) {
+        soLo++;
+        if (lo.mucDo === "vuot") vuot++;
+        else if (lo.mucDo === "sap-vuot") sapVuot++;
+      }
+      (lo.mucCon || []).forEach(m => {
+        soMuc++;
+        if (m.mucDo === "vuot") vuot++;
+        else if (m.mucDo === "sap-vuot") sapVuot++;
+      });
+    });
+    return { soLo, soMuc, vuot, sapVuot };
   }
 
   // ===== Tìm kiếm / lọc khoản =====
@@ -570,7 +631,8 @@ const Logic = (function () {
 
   return {
     boDau, locKhoan, tongKetLoc,
-    NGUONG_SAP_VUOT, daChiTheoMuc, trangThaiHanMuc, tomTatHanMuc,
+    NGUONG_SAP_VUOT, daChiTheoMuc, daChiTheoLo, loCuaKhoan,
+    chuanHoaHanMuc, trangThaiHanMuc, tomTatHanMuc,
     formatMoney, formatNgan, parseAmount, ngayKey, thangKey,
     chuoiThang, dienBienTheoThang, dienBienMuc,
     laKhoanThu, laChuyenLo, laKhoanChi,
