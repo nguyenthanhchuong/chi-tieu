@@ -22,6 +22,45 @@ Nếu đã cài app ra màn hình chính thì bấm **Tải lại bản mới** 
 
 ---
 
+## v23 — Tìm kiếm và lọc khoản
+*Apps Script: không đổi*
+
+- Nút **Tìm khoản** ở mục Gần đây, mở ra bảng lọc
+- Tìm theo **ghi chú, danh mục, người, tên lọ**; gõ **không dấu vẫn ra** (gõ
+  "an uong" tìm được "Ăn uống") vì gõ có dấu trên điện thoại rất chậm
+- Nhiều từ khoá thì phải khớp hết, không phải khớp một từ là ra
+- Lọc theo **loại** (Chi / Thu / Chuyển) và **khoảng ngày**
+- Hiện **số khoản tìm được và tổng tiền** ngay dưới bảng lọc — con số này mới
+  là thứ đáng xem, không phải chỉ danh sách
+- Đóng bảng tìm thì tự bỏ lọc, tránh tưởng sổ bị mất khoản
+- Số ca test: 140 → 153
+
+## v22 — Khoản Chuyển hiện rõ chiều chuyển lọ
+*Apps Script: không đổi*
+
+- Khoản chuyển lọ không hiện giống khoản chi nữa: có dấu ⇄, màu riêng và ghi
+  rõ "lọ nguồn → lọ đích"
+
+## v21 — Sửa lỗi khoản Chuyển bị tính vào tổng chi
+*Apps Script: không đổi*
+
+- **Lỗi số liệu:** tổng chi tháng ở đầu app dùng `!laKhoanThu` nên gom cả khoản
+  chuyển lọ vào chi, trong khi màn Thống kê dùng `laKhoanChi` nên loại ra —
+  hai con số đá nhau mà nhìn vẫn "hợp lý" nên rất khó phát hiện
+
+## v20 — Nhãn GIA ĐÌNH trên thanh tiêu đề
+*Apps Script: không đổi*
+
+- Có sổ cá nhân chạy song song trên cùng máy, ghi nhầm sổ thì phải vào tận
+  Google Sheet sửa nên cần nhãn phân biệt
+
+## v19 — Khoá tạm khi nhập sai PIN nhiều lần
+*Apps Script: không đổi*
+
+- Nhập sai PIN liên tiếp thì khoá tạm, chống dò mã
+- PIN chuyển sang **Script Properties** của Apps Script, không còn nằm trong
+  mã nguồn công khai nữa
+
 ## v18 — Chọn ngày khi nhập
 *Apps Script: không đổi*
 

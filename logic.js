@@ -458,7 +458,59 @@ const Logic = (function () {
     return "Có trục trặc, anh thử lại giúp nhé.";
   }
 
+  // ===== Tìm kiếm / lọc khoản =====
+  // Bỏ dấu tiếng Việt để gõ "an uong" vẫn tìm ra "Ăn uống".
+  function boDau(s) {
+    return String(s || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/đ/g, "d").replace(/Đ/g, "D")
+      .toLowerCase();
+  }
+
+  // dieuKien: { chu, loai: "tat-ca"|"thu"|"chi"|"chuyen", tu, den }
+  // Trả về mảng đã lọc, giữ nguyên thứ tự đầu vào.
+  function locKhoan(danhSach, dieuKien) {
+    const dk = dieuKien || {};
+    const chu = boDau(dk.chu).trim();
+    const loai = dk.loai || "tat-ca";
+    const tu = dk.tu || "";
+    const den = dk.den || "";
+
+    return (danhSach || []).filter(e => {
+      if (loai === "thu" && !laKhoanThu(e)) return false;
+      if (loai === "chuyen" && !laChuyenLo(e)) return false;
+      if (loai === "chi" && !laKhoanChi(e)) return false;
+
+      const ngay = String(e.date || "");
+      if (tu && ngay < tu) return false;
+      if (den && ngay > den) return false;
+
+      if (chu) {
+        const gop = boDau([e.category, e.note, e.payer, e.jar, e.jarTo].join(" "));
+        // Tách từ khoá theo khoảng trắng, phải khớp hết mới tính
+        const tuKhoa = chu.split(/\s+/).filter(Boolean);
+        if (!tuKhoa.every(t => gop.includes(t))) return false;
+      }
+      return true;
+    });
+  }
+
+  // Tổng tiền của một danh sách, tách riêng thu và chi (bỏ qua khoản chuyển lọ
+  // vì tiền không rời túi).
+  function tongKetLoc(danhSach) {
+    let thu = 0, chi = 0, chuyen = 0;
+    (danhSach || []).forEach(e => {
+      const tien = Number(e.amount) || 0;
+      if (laChuyenLo(e)) chuyen += tien;
+      else if (laKhoanThu(e)) thu += tien;
+      else chi += tien;
+    });
+    return { thu, chi, chuyen, soKhoan: (danhSach || []).length };
+  }
+
   return {
+    boDau, locKhoan, tongKetLoc,
     formatMoney, formatNgan, parseAmount, ngayKey, thangKey,
     chuoiThang, dienBienTheoThang, dienBienMuc,
     laKhoanThu, laChuyenLo, laKhoanChi,

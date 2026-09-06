@@ -837,6 +837,81 @@ test("KHÔNG để lọt mã lỗi kỹ thuật ra màn hình", () => {
     </div>`).join("");
 })();
 
+
+nhom("Tìm kiếm và lọc khoản");
+
+const DS_TIM = [
+  { id:"a", date:"2026-08-10", amount:50000,    category:"Ăn uống",      note:"Cơm trưa",      payer:"Chồng", type:"Chi" },
+  { id:"b", date:"2026-08-12", amount:22000000, category:"Lương",        note:"Lương tháng 8", payer:"Vợ",    type:"Thu" },
+  { id:"c", date:"2026-08-20", amount:300000,   category:"Chợ/Siêu thị", note:"Đi chợ",        payer:"Vợ",    type:"Chi" },
+  { id:"d", date:"2026-09-01", amount:1000000,  category:"Chuyển lọ",    note:"dồn dư",        type:"Chuyển", jar:"NEC", jarTo:"LTSS" }
+];
+
+test("bỏ dấu tiếng Việt", () => {
+  bang(Logic.boDau("Ăn uống"), "an uong");
+  bang(Logic.boDau("Đi lại"), "di lai");
+});
+
+test("không điều kiện thì giữ nguyên tất cả", () => {
+  bang(Logic.locKhoan(DS_TIM, {}).length, 4);
+});
+
+// Gõ tiếng Việt có dấu trên điện thoại rất chậm, nên gõ không dấu phải ra kết quả.
+test("tìm không dấu vẫn ra khoản có dấu", () => {
+  const r = Logic.locKhoan(DS_TIM, { chu: "an uong" });
+  bang(r.length, 1);
+  bang(r[0].id, "a");
+});
+
+test("tìm theo ghi chú", () => {
+  bang(Logic.locKhoan(DS_TIM, { chu: "com trua" })[0].id, "a");
+});
+
+test("tìm theo người", () => {
+  bang(Logic.locKhoan(DS_TIM, { chu: "vo" }).length, 2);
+});
+
+test("nhiều từ khoá phải khớp hết", () => {
+  bang(Logic.locKhoan(DS_TIM, { chu: "luong thang" }).length, 1);
+  bang(Logic.locKhoan(DS_TIM, { chu: "luong com" }).length, 0);
+});
+
+test("lọc theo loại Thu", () => {
+  const r = Logic.locKhoan(DS_TIM, { loai: "thu" });
+  bang(r.length, 1);
+  bang(r[0].id, "b");
+});
+
+// Bài học cũ: khoản Chuyển từng bị gom nhầm vào chi, nên phải canh riêng.
+test("lọc loại Chi KHÔNG lẫn khoản Chuyển", () => {
+  const r = Logic.locKhoan(DS_TIM, { loai: "chi" });
+  bang(r.length, 2);
+  bang(r.some(e => e.type === "Chuyển"), false);
+});
+
+test("lọc theo khoảng ngày", () => {
+  bang(Logic.locKhoan(DS_TIM, { tu: "2026-08-11", den: "2026-08-31" }).length, 2);
+  bang(Logic.locKhoan(DS_TIM, { tu: "2026-09-01" }).length, 1);
+  bang(Logic.locKhoan(DS_TIM, { den: "2026-08-10" }).length, 1);
+});
+
+test("kết hợp chữ và ngày", () => {
+  bang(Logic.locKhoan(DS_TIM, { chu: "vo", tu: "2026-08-15" }).length, 1);
+});
+
+test("tổng kết tách riêng thu, chi, chuyển", () => {
+  const t = Logic.tongKetLoc(DS_TIM);
+  bang(t.soKhoan, 4);
+  bang(t.thu, 22000000);
+  bang(t.chi, 350000);
+  bang(t.chuyen, 1000000);
+});
+
+test("danh sách rỗng không làm vỡ", () => {
+  bang(Logic.locKhoan(null, { chu: "abc" }).length, 0);
+  bang(Logic.tongKetLoc(null).soKhoan, 0);
+});
+
 }  // hết chayToanBo
 
 // Nạp logic.js kèm dấu thời gian để trình duyệt không đưa bản cũ trong bộ nhớ
