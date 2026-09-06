@@ -845,8 +845,18 @@ test("gõ thiếu vẫn ra: 'luon' tìm được Lương", () => {
   bang(Logic.locKhoan(DS_TIM, { chu: "luon" }).length, 1);
 });
 
+// Dấu gạch chéo trong "Chợ/Siêu thị" phải được tách như khoảng trắng.
+// Lưu ý: "cho" cũng khớp "Chồng" (bỏ dấu đều thành "chong"/"cho...") —
+// đó là đúng, nên chỉ canh có mặt chứ không canh là kết quả duy nhất.
 test("tìm được danh mục có dấu gạch chéo", () => {
-  bang(Logic.locKhoan(DS_TIM, { chu: "cho" })[0].id, "c");
+  const r = Logic.locKhoan(DS_TIM, { chu: "cho" });
+  bang(r.some(e => e.id === "c"), true);
+});
+
+test("tìm 'sieu thi' ra đúng khoản đi chợ", () => {
+  const r = Logic.locKhoan(DS_TIM, { chu: "sieu thi" });
+  bang(r.length, 1);
+  bang(r[0].id, "c");
 });
 
 test("tìm theo ghi chú", () => {
