@@ -22,6 +22,41 @@ Nếu đã cài app ra màn hình chính thì bấm **Tải lại bản mới** 
 
 ---
 
+## v28 — Vay nợ & Sổ tiết kiệm
+*Apps Script: **CÓ ĐỔI** — phải deploy lại (thêm cột "Đối tượng" + hàm nhắc đáo hạn)*
+
+Tab mới **Nợ & TK**, gộp hai thứ cùng bản chất: tiền ở ngoài ví.
+
+**Theo dõi vay nợ**
+- Bốn loại giao dịch mới: `Cho vay`, `Thu nợ`, `Đi vay`, `Trả nợ`
+- **Không loại nào tính vào thu/chi.** Cho vay 20 triệu thì tiền vẫn của anh,
+  chỉ đang nằm chỗ khác — cộng vào chi tiêu là làm sai cả báo cáo tháng.
+- Nhưng **số dư ví vẫn đổi đúng**: cho vay/trả nợ làm tiền rời ví, thu nợ/đi
+  vay làm tiền vào ví
+- Số dư nợ **theo từng người**, kèm cả bốn con số cộng dồn để kiểm lại được
+- Tách hai chiều rõ ràng: *người ta nợ mình* (xanh) và *mình nợ người ta* (đỏ)
+- Gợi ý tên đã từng ghi, tránh "Anh Hùng" và "anh hung" bị tách thành hai người
+- Lọc riêng khoản nợ trong bảng tìm kiếm
+
+**Sổ tiết kiệm có nhắc đáo hạn**
+- Ghi sổ có kỳ hạn: số tiền, nơi gửi, lãi suất, ngày gửi, kỳ hạn
+- Tự tính **ngày đáo hạn**, lãi dự kiến và tiền nhận về, xem trước ngay lúc gõ
+- Gửi ngày 31 mà tháng đích chỉ có 30 ngày thì lùi về ngày cuối tháng, không
+  nhảy sang tháng sau
+- Lãi tính **đơn**, không kép: sổ có kỳ hạn ở VN trả lãi cuối kỳ
+- Màu viền theo mức độ: quá hạn (đỏ), còn dưới 7 ngày (vàng), còn hạn
+- **Email nhắc lúc 8h sáng** mỗi ngày khi có sổ sắp/đã đáo hạn. App là trang
+  web tĩnh nên không tự đẩy thông báo lên điện thoại được — nhắc trong app chỉ
+  ăn khi anh mở app, nên phần nhắc thật nằm ở Google.
+
+Sửa kèm: khoản chuyển ví trước đây có thể bị cộng vào phần đã chi của lọ.
+- Số ca test: 182 → 203
+
+> **Việc anh cần làm:** mở Apps Script, dán lại `apps-script.gs`, rồi
+> *Deploy → Manage deployments → sửa → Version: New version → Deploy*.
+> Sau đó chọn hàm `caiDatNhacDaoHan` và bấm **Chạy** một lần để bật email
+> nhắc (Google sẽ hỏi cấp quyền gửi mail — bấm đồng ý).
+
 ## v27 — Ví / nguồn tiền
 *Apps Script: **CÓ ĐỔI** — phải deploy lại (thêm cột "Ví" và "Ví đích")*
 
