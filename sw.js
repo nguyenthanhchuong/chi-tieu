@@ -10,9 +10,9 @@ const CACHE_VERSION = "chi-tieu-v28";
 const SHELL = [
   "./",
   "./index.html",
-  "./style.css?v=18",
-  "./logic.js?v=18",
-  "./app.js?v=18",
+  "./style.css?v=28",
+  "./logic.js?v=28",
+  "./app.js?v=28",
   "./manifest.json"
 ];
 
