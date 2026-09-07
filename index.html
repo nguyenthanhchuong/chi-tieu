@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Sổ Chi Tiêu">
-<link rel="stylesheet" href="style.css?v=26">
+<link rel="stylesheet" href="style.css?v=27">
 </head>
 <body>
 
@@ -55,6 +55,7 @@
   <nav class="tabs">
     <button type="button" class="tab on" id="tab-btn-nhap">Nhập</button>
     <button type="button" class="tab" id="tab-btn-lo">Lọ</button>
+    <button type="button" class="tab" id="tab-btn-vi">Ví</button>
     <button type="button" class="tab" id="tab-btn-thongke">Thống kê</button>
   </nav>
 
@@ -83,6 +84,11 @@
       <div class="payer-row">
         <span class="payer-label" id="payer-label">Người chi</span>
         <div class="chips payer" id="payers"></div>
+      </div>
+
+      <div class="payer-row">
+        <span class="payer-label">Từ ví</span>
+        <div class="chips payer" id="vis"></div>
       </div>
 
       <p class="entry-error" id="entry-error" hidden></p>
@@ -139,6 +145,74 @@
 
       <div class="stat-block" id="jar-history"></div>
     </section>
+  </div>
+
+  <!-- ===== Màn hình ví / nguồn tiền ===== -->
+  <div id="tab-vi" hidden>
+    <section class="jars">
+      <div class="jar-head">
+        <span class="jar-month">Tiền đang ở đâu</span>
+        <button type="button" class="link-btn" id="btn-caidat-vi">Cài đặt ví</button>
+      </div>
+
+      <p class="jar-note" id="vi-chuagan" hidden></p>
+
+      <div id="vi-list"></div>
+
+      <button type="button" class="btn-outline" id="btn-chuyen-vi">Chuyển tiền giữa các ví</button>
+
+      <div class="stat-block" id="vi-history"></div>
+    </section>
+  </div>
+
+  <!-- Hộp thoại chuyển tiền giữa các ví -->
+  <div class="sheet" id="chuyenvi-sheet" hidden>
+    <div class="sheet-card">
+      <h3 class="sheet-title">Chuyển tiền giữa các ví</h3>
+      <p class="sheet-sub">Ví dụ rút tiền từ ngân hàng ra tiền mặt. Tiền không rời
+         khỏi nhà nên khoản này không tính là chi tiêu.</p>
+
+      <label class="sheet-label" for="cv-from">Từ ví</label>
+      <select class="sheet-select" id="cv-from"></select>
+
+      <label class="sheet-label" for="cv-to">Sang ví</label>
+      <select class="sheet-select" id="cv-to"></select>
+
+      <label class="sheet-label" for="cv-amount">Số tiền</label>
+      <input type="text" class="note-input" id="cv-amount" inputmode="numeric" placeholder="0">
+
+      <label class="sheet-label" for="cv-date">Ngày</label>
+      <input type="date" class="sheet-select" id="cv-date">
+
+      <label class="sheet-label" for="cv-note">Ghi chú</label>
+      <input type="text" class="note-input" id="cv-note" placeholder="Không bắt buộc">
+
+      <p class="entry-error" id="cv-error" hidden></p>
+
+      <div class="sheet-actions">
+        <button type="button" class="btn-ghost" id="cv-cancel">Huỷ</button>
+        <button type="button" class="btn-primary" id="cv-ok">Chuyển</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hộp thoại cài đặt ví: danh sách ví và số dư đầu -->
+  <div class="sheet" id="caidatvi-sheet" hidden>
+    <div class="sheet-card">
+      <h3 class="sheet-title">Cài đặt ví</h3>
+      <p class="sheet-sub">Mỗi dòng một ví. Số dư đầu là số tiền đang có trong ví
+         tại thời điểm bắt đầu ghi sổ — để trống nếu tính từ 0.</p>
+
+      <div id="caidatvi-rows"></div>
+      <button type="button" class="link-btn" id="btn-them-vi">+ Thêm ví</button>
+
+      <p class="entry-error" id="caidatvi-error" hidden></p>
+
+      <div class="sheet-actions">
+        <button type="button" class="btn-ghost" id="caidatvi-cancel">Huỷ</button>
+        <button type="button" class="btn-primary" id="caidatvi-ok">Lưu</button>
+      </div>
+    </div>
   </div>
 
   <!-- Hộp thoại chuyển tiền giữa các lọ -->
@@ -199,6 +273,9 @@
 
       <label class="sheet-label" for="edit-payer">Người</label>
       <select class="sheet-select" id="edit-payer"></select>
+
+      <label class="sheet-label" for="edit-wallet">Ví</label>
+      <select class="sheet-select" id="edit-wallet"></select>
 
       <label class="sheet-label" for="edit-note">Ghi chú</label>
       <input type="text" class="note-input" id="edit-note" placeholder="Không bắt buộc">
@@ -286,7 +363,7 @@
   <div class="toast" id="toast" hidden></div>
 </div>
 
-<script src="logic.js?v=26"></script>
-<script src="app.js?v=26"></script>
+<script src="logic.js?v=27"></script>
+<script src="app.js?v=27"></script>
 </body>
 </html>

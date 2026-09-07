@@ -22,6 +22,25 @@ Nếu đã cài app ra màn hình chính thì bấm **Tải lại bản mới** 
 
 ---
 
+## v27 — Ví / nguồn tiền
+*Apps Script: **CÓ ĐỔI** — phải deploy lại (thêm cột "Ví" và "Ví đích")*
+
+- Tab mới **Ví**: biết tiền đang nằm ở đâu (Tiền mặt, Ngân hàng, Momo, Thẻ
+  tín dụng — sửa được danh sách)
+- Ví khác lọ: **lọ** trả lời "tiền dành cho việc gì", **ví** trả lời "tiền đang
+  nằm ở đâu". Một khoản chi vừa trừ lọ vừa trừ ví, hai chiều độc lập.
+- Chọn ví ngay khi nhập khoản; hộp sửa khoản cũng đổi được ví
+- **Chuyển tiền giữa các ví** (vd rút ngân hàng ra tiền mặt) — loại giao dịch
+  mới `Chuyển ví`, KHÔNG tính là chi tiêu
+- **Số dư đầu** cho từng ví, để bù phần khoản cũ chưa gán ví
+- Ví đã bỏ khỏi danh sách nhưng còn khoản gắn nó vẫn hiện, tiền không "bốc hơi"
+- Báo rõ **số khoản cũ chưa gán ví** thay vì lặng lẽ đưa ra số dư thiếu
+- Số ca test: 172 → 183
+
+> **Việc anh cần làm:** mở Apps Script, dán lại `apps-script.gs`, rồi
+> *Deploy → Manage deployments → sửa → Version: New version → Deploy*.
+> Cột mới trong Sheet sẽ tự thêm, dữ liệu cũ giữ nguyên.
+
 ## v26 — Hạn mức hai tầng: theo lọ và theo mục nhỏ
 *Apps Script: không đổi*
 

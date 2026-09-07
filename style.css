@@ -895,3 +895,34 @@ body {
 }
 .hm-nhap.con { margin-left: 12px; }
 .hm-nhap.con .sheet-label { font-weight: 500; }
+
+/* ===== Ví / nguồn tiền ===== */
+.jar.vi-tong {
+  background: var(--accent-soft);
+  border: 1px solid var(--line);
+}
+.jar.vi-tong .jar-name { color: var(--accent); }
+
+.vi-nhap {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.vi-nhap .vi-ten { flex: 2; min-width: 0; }
+.vi-nhap .vi-dau { flex: 1.4; min-width: 0; }
+.vi-xoa {
+  flex-shrink: 0;
+  width: 34px; height: 38px;
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--muted);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  cursor: pointer;
+}
+.vi-xoa:active { color: var(--danger); }
+
+/* 4 tab thì chữ phải nhỏ lại mới vừa màn hình điện thoại */
+.tabs .tab { font-size: 12.5px; padding: 10px 4px; }
