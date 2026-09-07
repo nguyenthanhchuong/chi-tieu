@@ -56,6 +56,11 @@ Sửa kèm: khoản chuyển ví trước đây có thể bị cộng vào phầ
 > *Deploy → Manage deployments → sửa → Version: New version → Deploy*.
 > Sau đó chọn hàm `caiDatNhacDaoHan` và bấm **Chạy** một lần để bật email
 > nhắc (Google sẽ hỏi cấp quyền gửi mail — bấm đồng ý).
+>
+> **Rồi chạy tiếp hàm `guiThuMotEmail` một lần nữa.** Chạy `caiDatNhacDaoHan`
+> KHÔNG đủ: Google chỉ xin quyền cho đúng nhánh code đang chạy, mà hàm đó
+> không đụng tới mail nên quyền gửi mail không được xin. Trigger tạo ra nhìn
+> rất bình thường, nhưng 8h sáng sẽ văng lỗi quyền trong im lặng.
 
 ## v27 — Ví / nguồn tiền
 *Apps Script: **CÓ ĐỔI** — phải deploy lại (thêm cột "Ví" và "Ví đích")*
