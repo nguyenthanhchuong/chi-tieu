@@ -95,7 +95,7 @@ function initNgay() {
 
 // ===== Gọi API =====
 // Tăng mỗi lần sửa app, hiển thị ở màn hình PIN để biết máy đang chạy bản nào.
-const APP_VERSION = "26";
+const APP_VERSION = "27";
 
 // ===== Nhật ký dò lỗi =====
 // Ghi vào localStorage nên còn nguyên kể cả khi trang tự nạp lại — đây là
@@ -364,15 +364,18 @@ function render() {
     list.innerHTML = "";
     recent.forEach(e => {
       const thu = laKhoanThu(e);
-      const chuyen = Logic.laChuyenLo(e);
+      const chuyenVi = Logic.laChuyenVi(e);
+      const chuyen = Logic.laChuyenLo(e) || chuyenVi;
       const row = document.createElement("div");
       row.className = "item" + (e.unsent ? " unsent" : "");
       // Khoản chuyển lọ tiền không rời túi, nên không được hiện giống hệt một
       // khoản chi: chỉ ra chiều chuyển và dùng màu riêng, tránh nhìn nhầm.
       const tenLo = k => (Logic.timLo(k) || {}).ten || k || "?";
-      const meta = chuyen
+      const meta = chuyenVi
+        ? [e.date, `${e.wallet} → ${e.walletTo}`, e.note].filter(Boolean).join(" · ")
+        : chuyen
         ? [e.date, `${tenLo(e.jar)} → ${tenLo(e.jarTo)}`, e.note].filter(Boolean).join(" · ")
-        : [e.date, e.payer, e.note].filter(Boolean).join(" · ");
+        : [e.date, e.payer, e.wallet, e.note].filter(Boolean).join(" · ");
       const lopTien = thu ? " thu" : (chuyen ? " chuyen" : "");
       const dauTien = thu ? "+" : (chuyen ? "⇄ " : "");
       row.innerHTML = `
@@ -399,6 +402,219 @@ function render() {
 
   renderStats();
   renderJars();
+}
+
+// ===== Ví / nguồn tiền =====
+// Ví trả lời "tiền đang NẰM Ở ĐÂU", lọ trả lời "tiền DÀNH CHO việc gì".
+// Một khoản chi vừa trừ lọ vừa trừ ví — hai chiều độc lập nhau.
+let caiDatVi = { ds: Logic.VI_MAC_DINH.slice(), soDuDau: {} };
+let viDangChon = localStorage.getItem("ct_vi") || "";
+
+function dsVi() { return Logic.danhSachVi(caiDatVi); }
+
+function renderChipVi() {
+  const box = $("vis");
+  if (!box) return;
+  const ds = dsVi();
+  if (!ds.includes(viDangChon)) viDangChon = ds[0] || "";
+  box.innerHTML = ds.map(v =>
+    `<button type="button" class="chip${v === viDangChon ? " on" : ""}" data-vi="${v}">${v}</button>`
+  ).join("");
+  box.querySelectorAll(".chip").forEach(b => {
+    b.addEventListener("click", () => {
+      viDangChon = b.dataset.vi;
+      localStorage.setItem("ct_vi", viDangChon);
+      renderChipVi();
+    });
+  });
+}
+
+function renderVi() {
+  const box = $("vi-list");
+  if (!box) return;
+  const kq = Logic.soDuCacVi(tatCaKhoan(), caiDatVi);
+
+  // Khoản cũ chưa gán ví thì số dư chưa phản ánh đủ — phải nói rõ, nếu không
+  // anh sẽ tin vào một con số thiếu mà không biết.
+  const note = $("vi-chuagan");
+  if (kq.chuaGanVi > 0) {
+    note.textContent = `${kq.chuaGanVi} khoản cũ chưa gán ví nên chưa được tính vào số dư bên dưới. `
+      + `Số dư đầu trong Cài đặt ví là chỗ để bù phần này.`;
+    note.hidden = false;
+  } else {
+    note.hidden = true;
+  }
+
+  const tong = kq.thuTu.reduce((s, v) => s + kq.vi[v].con, 0);
+  box.innerHTML = kq.thuTu.map(v => {
+    const o = kq.vi[v];
+    const am = o.con < 0 ? " am" : "";
+    return `
+      <div class="jar">
+        <div class="jar-top">
+          <span class="jar-name">${o.ten}${o.ngoaiDs ? '<span class="jar-tag">đã bỏ</span>' : ""}</span>
+          <span class="jar-left${am}">${formatMoney(o.con)} đ</span>
+        </div>
+        <div class="jar-sub">
+          ${o.soDuDau ? `đầu ${formatMoney(o.soDuDau)}đ · ` : ""}vào ${formatMoney(o.thu + o.den)}đ · ra ${formatMoney(o.chi + o.di)}đ
+        </div>
+      </div>`;
+  }).join("") + `
+    <div class="jar vi-tong">
+      <div class="jar-top">
+        <span class="jar-name">Tổng các ví</span>
+        <span class="jar-left${tong < 0 ? " am" : ""}">${formatMoney(tong)} đ</span>
+      </div>
+    </div>`;
+
+  // Lịch sử chuyển ví gần đây
+  const ls = tatCaKhoan().filter(Logic.laChuyenVi).slice(0, 8);
+  $("vi-history").innerHTML = ls.length
+    ? `<h3>Chuyển ví gần đây</h3>` + ls.map(e => `
+        <div class="mv">
+          <div class="mv-main">
+            <div class="mv-name">${e.wallet} → ${e.walletTo}</div>
+            <div class="mv-meta">${[e.date, e.note].filter(Boolean).join(" · ")}</div>
+          </div>
+          <div class="mv-num">${formatMoney(e.amount)} đ</div>
+        </div>`).join("")
+    : "";
+}
+
+function moHopChuyenVi() {
+  const ds = dsVi();
+  const opt = ds.map(v => `<option value="${v}">${v}</option>`).join("");
+  $("cv-from").innerHTML = opt;
+  $("cv-to").innerHTML = opt;
+  if (ds[1]) $("cv-to").value = ds[1];
+  $("cv-amount").value = "";
+  $("cv-note").value = "";
+  $("cv-date").value = ngayHomNay();
+  $("cv-error").hidden = true;
+  $("chuyenvi-sheet").hidden = false;
+}
+
+async function luuChuyenVi() {
+  const tu = $("cv-from").value;
+  const den = $("cv-to").value;
+  const tien = parseAmount($("cv-amount").value);
+
+  const kt = Logic.kiemTraChuyenVi(tu, den, tien);
+  if (!kt.duoc) {
+    $("cv-error").textContent = kt.loi;
+    $("cv-error").hidden = false;
+    return;
+  }
+
+  const entry = {
+    id: "cv-" + Date.now(),
+    date: $("cv-date").value || ngayHomNay(),
+    amount: tien,
+    category: "Chuyển ví",
+    note: $("cv-note").value.trim(),
+    payer: selectedPayer,
+    type: "Chuyển ví",
+    wallet: tu,
+    walletTo: den
+  };
+
+  const nut = $("cv-ok");
+  nut.disabled = true;
+  nut.textContent = "Đang chuyển…";
+  try {
+    await callApi("add", { entry }, { retries: 2 });
+    entries.unshift(entry);
+    $("chuyenvi-sheet").hidden = true;
+    showToast(`Đã chuyển ${formatMoney(tien)} đ`);
+    render();
+  } catch (err) {
+    $("cv-error").textContent = friendlyError(err);
+    $("cv-error").hidden = false;
+  } finally {
+    nut.disabled = false;
+    nut.textContent = "Chuyển";
+  }
+}
+
+function moHopCaiDatVi() {
+  veDongCaiDatVi(dsVi());
+  $("caidatvi-error").hidden = true;
+  $("caidatvi-sheet").hidden = false;
+}
+
+function veDongCaiDatVi(ds) {
+  const box = $("caidatvi-rows");
+  box.innerHTML = ds.map((v, i) => `
+    <div class="vi-nhap" data-i="${i}">
+      <input type="text" class="note-input vi-ten" value="${v}" placeholder="Tên ví">
+      <input type="text" class="note-input vi-dau" inputmode="numeric"
+             placeholder="Số dư đầu"
+             value="${caiDatVi.soDuDau[v] ? formatMoney(caiDatVi.soDuDau[v]) : ""}">
+      <button type="button" class="vi-xoa" title="Bỏ ví này">✕</button>
+    </div>`).join("");
+
+  box.querySelectorAll(".vi-dau").forEach(o => {
+    o.addEventListener("input", () => {
+      const n = parseAmount(o.value);
+      o.value = n ? formatMoney(n) : "";
+    });
+  });
+  box.querySelectorAll(".vi-xoa").forEach(b => {
+    b.addEventListener("click", () => b.closest(".vi-nhap").remove());
+  });
+}
+
+async function luuCaiDatVi() {
+  const ds = [];
+  const soDuDau = {};
+  $("caidatvi-rows").querySelectorAll(".vi-nhap").forEach(d => {
+    const ten = d.querySelector(".vi-ten").value.trim();
+    if (!ten || ds.includes(ten)) return;
+    ds.push(ten);
+    const n = parseAmount(d.querySelector(".vi-dau").value);
+    if (n > 0) soDuDau[ten] = n;
+  });
+
+  if (!ds.length) {
+    $("caidatvi-error").textContent = "Cần ít nhất một ví.";
+    $("caidatvi-error").hidden = false;
+    return;
+  }
+
+  const nut = $("caidatvi-ok");
+  nut.disabled = true;
+  nut.textContent = "Đang lưu…";
+  try {
+    const moi = { ds, soDuDau };
+    await callApi("setSettings", { settings: { vi: moi } }, { retries: 2 });
+    caiDatVi = moi;
+    $("caidatvi-sheet").hidden = true;
+    showToast("Đã lưu cài đặt ví");
+    renderChipVi();
+    render();
+  } catch (err) {
+    $("caidatvi-error").textContent = friendlyError(err);
+    $("caidatvi-error").hidden = false;
+  } finally {
+    nut.disabled = false;
+    nut.textContent = "Lưu";
+  }
+}
+
+function initVi() {
+  renderChipVi();
+  if ($("btn-chuyen-vi")) $("btn-chuyen-vi").addEventListener("click", moHopChuyenVi);
+  if ($("cv-cancel")) $("cv-cancel").addEventListener("click", () => { $("chuyenvi-sheet").hidden = true; });
+  if ($("cv-ok")) $("cv-ok").addEventListener("click", luuChuyenVi);
+  if ($("btn-caidat-vi")) $("btn-caidat-vi").addEventListener("click", moHopCaiDatVi);
+  if ($("caidatvi-cancel")) $("caidatvi-cancel").addEventListener("click", () => { $("caidatvi-sheet").hidden = true; });
+  if ($("caidatvi-ok")) $("caidatvi-ok").addEventListener("click", luuCaiDatVi);
+  if ($("btn-them-vi")) {
+    $("btn-them-vi").addEventListener("click", () => {
+      const dangCo = [...$("caidatvi-rows").querySelectorAll(".vi-ten")].map(o => o.value.trim());
+      veDongCaiDatVi(dangCo.concat([""]));
+    });
+  }
 }
 
 // ===== Hạn mức chi tiêu =====
@@ -1029,6 +1245,18 @@ function moHopSua(id) {
   oNguoi.innerHTML = PAYERS.map(p =>
     `<option value="${p}"${p === e.payer ? " selected" : ""}>${p}</option>`).join("");
 
+  // Ví: cho phép để trống, vì 352 khoản cũ nhập trước khi có tính năng này
+  // đều chưa gán ví — ép chọn sẽ gán bừa và làm sai số dư.
+  const oVi = $("edit-wallet");
+  if (oVi) {
+    const ds = dsVi();
+    const hienTai = e.wallet || "";
+    const themLa = hienTai && !ds.includes(hienTai) ? [hienTai] : [];
+    oVi.innerHTML = `<option value=""${!hienTai ? " selected" : ""}>— chưa gán —</option>`
+      + ds.concat(themLa).map(v =>
+          `<option value="${v}"${v === hienTai ? " selected" : ""}>${v}</option>`).join("");
+  }
+
   $("edit-note").value = e.note || "";
   $("edit-error").hidden = true;
   datLaiNutXoa();
@@ -1070,7 +1298,9 @@ async function luuSuaKhoan() {
     // Sửa số tiền khoản thu thì phải chia lại vào các lọ, nếu không số dư lọ
     // sẽ vẫn theo số cũ. Chia theo tỉ lệ hiện tại.
     alloc: laThu ? Logic.phanBo(tien, tiLeLo) : (cu.alloc || null),
-    jar: Logic.laChuyenLo(cu) ? cu.jar : (laThu ? "" : Logic.doanLo(danhMuc))
+    jar: Logic.laChuyenLo(cu) ? cu.jar : (laThu ? "" : Logic.doanLo(danhMuc)),
+    // Khoản chuyển ví giữ nguyên cặp ví, không cho sửa lệch một đầu
+    wallet: Logic.laChuyenVi(cu) ? cu.wallet : (($("edit-wallet") && $("edit-wallet").value) || "")
   };
 
   const btn = $("edit-save");
@@ -1356,6 +1586,10 @@ async function napCaiDat() {
     if (s.tiLe && typeof s.tiLe === "object") tiLeLo = s.tiLe;
     if (s.loNhanDu) loNhanDu = s.loNhanDu;
     if (s.hanMuc && typeof s.hanMuc === "object") hanMuc = s.hanMuc;
+    if (s.vi && typeof s.vi === "object") {
+      caiDatVi = { ds: Logic.danhSachVi(s.vi), soDuDau: s.vi.soDuDau || {} };
+      renderChipVi();
+    }
   } catch (err) {
     // Không lấy được thì dùng tỉ lệ mặc định, app vẫn chạy.
   }
@@ -1386,6 +1620,7 @@ function initTabs() {
   const cacTab = [
     { nut: "tab-btn-nhap",    khung: "tab-nhap" },
     { nut: "tab-btn-lo",      khung: "tab-lo" },
+    { nut: "tab-btn-vi",      khung: "tab-vi" },
     { nut: "tab-btn-thongke", khung: "tab-thongke" }
   ];
   if (!$(cacTab[0].nut)) return;
@@ -1397,6 +1632,7 @@ function initTabs() {
       $(t.khung).hidden = !dangChon;
     });
     if (key === "tab-lo") renderJars();
+    if (key === "tab-vi") renderVi();
     if (key === "tab-thongke") renderStats();
     window.scrollTo(0, 0);
   };
@@ -1442,7 +1678,9 @@ async function saveEntry() {
     // Khoản thu lưu kèm bảng phân bổ tại thời điểm ghi: tỉ lệ có thể đổi
     // về sau nhưng lịch sử thì không được đổi theo.
     jar: selectedKind === "Thu" ? "" : Logic.doanLo(selectedCategory),
-    alloc: selectedKind === "Thu" ? Logic.phanBo(amount, tiLeLo) : null
+    alloc: selectedKind === "Thu" ? Logic.phanBo(amount, tiLeLo) : null,
+    // Tiền ra khỏi (hoặc vào) ví nào
+    wallet: viDangChon || ""
   };
 
   const nhanLoai = selectedKind === "Thu" ? "khoản thu" : "khoản chi";
@@ -1508,6 +1746,7 @@ function init() {
   initNgay();
   initTim();
   initHanMuc();
+  initVi();
 
   // Vừa gõ vừa chấm phân cách nghìn cho dễ đọc
   $("amount").addEventListener("input", e => {

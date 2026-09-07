@@ -809,6 +809,86 @@ test("KHÔNG để lọt mã lỗi kỹ thuật ra màn hình", () => {
 // ===================================================================
 // Hiển thị kết quả
 
+nhom("Ví / nguồn tiền");
+
+const DS_VI = [
+  { date:"2026-08-01", amount:20000000, category:"Lương",     type:"Thu", wallet:"Ngân hàng" },
+  { date:"2026-08-02", amount:3000000,  category:"Chuyển ví", type:"Chuyển ví", wallet:"Ngân hàng", walletTo:"Tiền mặt" },
+  { date:"2026-08-03", amount:500000,   category:"Ăn uống",   type:"Chi", wallet:"Tiền mặt" },
+  { date:"2026-08-04", amount:1200000,  category:"Hoá đơn",   type:"Chi", wallet:"Ngân hàng" },
+  { date:"2026-08-05", amount:800000,   category:"Chuyển lọ", type:"Chuyển", jar:"NEC", jarTo:"LTSS" },
+  { date:"2026-08-06", amount:99000,    category:"Đi lại",    type:"Chi" }   // khoản cũ chưa gán ví
+];
+const CD_VI = { ds: ["Tiền mặt", "Ngân hàng"], soDuDau: { "Tiền mặt": 1000000 } };
+
+// Đây là cái bẫy dự án đã dính hai lần với khoản chuyển lọ.
+test("CHUYỂN VÍ KHÔNG PHẢI KHOẢN CHI", () => {
+  bang(Logic.laKhoanChi({ type: "Chuyển ví", amount: 3000000 }), false);
+  bang(Logic.laKhoanThu({ type: "Chuyển ví" }), false);
+  bang(Logic.laChuyenLo({ type: "Chuyển ví" }), false);
+  bang(Logic.laChuyenVi({ type: "Chuyển ví" }), true);
+});
+
+test("chuyển ví không lọt vào tổng chi của kỳ", () => {
+  const k = Logic.tongHopKy(DS_VI, "2026-08-01", "2026-08-31");
+  bang(k.tongChi, 1799000);   // 500k + 1.2tr + 99k, KHÔNG có 3tr chuyển ví
+});
+
+test("số dư ví cộng đúng cả bốn chiều", () => {
+  const r = Logic.soDuCacVi(DS_VI, CD_VI);
+  // Tiền mặt: đầu 1tr + chuyển đến 3tr − chi 500k = 3.5tr
+  bang(r.vi["Tiền mặt"].con, 3500000);
+  // Ngân hàng: thu 20tr − chuyển đi 3tr − chi 1.2tr = 15.8tr
+  bang(r.vi["Ngân hàng"].con, 15800000);
+});
+
+test("chuyển LỌ không đụng tới số dư ví", () => {
+  const khongCoChuyenLo = DS_VI.filter(e => e.type !== "Chuyển");
+  const a = Logic.soDuCacVi(DS_VI, CD_VI);
+  const b = Logic.soDuCacVi(khongCoChuyenLo, CD_VI);
+  bang(a.vi["Tiền mặt"].con, b.vi["Tiền mặt"].con);
+  bang(a.vi["Ngân hàng"].con, b.vi["Ngân hàng"].con);
+});
+
+// Không được im lặng bỏ qua: 352 khoản cũ chưa gán ví, nếu không báo thì
+// người dùng sẽ tin vào một số dư thiếu mà không biết.
+test("đếm được khoản chưa gán ví", () => {
+  bang(Logic.soDuCacVi(DS_VI, CD_VI).chuaGanVi, 1);
+});
+
+test("số dư đầu được cộng vào", () => {
+  const r = Logic.soDuCacVi([], { ds: ["Tiền mặt"], soDuDau: { "Tiền mặt": 500000 } });
+  bang(r.vi["Tiền mặt"].con, 500000);
+});
+
+// Ví bị xoá khỏi cài đặt nhưng vẫn còn khoản gắn nó thì tiền không được
+// "bốc hơi" khỏi bảng.
+test("ví đã bỏ khỏi danh sách vẫn hiện nếu còn khoản", () => {
+  const ds = [{ date:"2026-08-01", amount:200000, category:"Ăn uống", type:"Chi", wallet:"Ví cũ" }];
+  const r = Logic.soDuCacVi(ds, { ds: ["Tiền mặt"], soDuDau: {} });
+  bang(r.vi["Ví cũ"].con, -200000);
+  bang(r.vi["Ví cũ"].ngoaiDs, true);
+});
+
+test("danh sách ví rỗng thì dùng mặc định", () => {
+  bang(Logic.danhSachVi(null).length, Logic.VI_MAC_DINH.length);
+  bang(Logic.danhSachVi({ ds: [] })[0], Logic.VI_MAC_DINH[0]);
+});
+
+test("chặn chuyển ví không hợp lệ", () => {
+  bang(Logic.kiemTraChuyenVi("", "Tiền mặt", 1000).duoc, false);
+  bang(Logic.kiemTraChuyenVi("Tiền mặt", "Tiền mặt", 1000).duoc, false);
+  bang(Logic.kiemTraChuyenVi("Tiền mặt", "Ngân hàng", 0).duoc, false);
+  bang(Logic.kiemTraChuyenVi("Tiền mặt", "Ngân hàng", 1000).duoc, true);
+});
+
+test("chuyển ví không làm đổi tổng tiền các ví", () => {
+  const truoc = Logic.soDuCacVi(DS_VI.filter(e => e.type !== "Chuyển ví"), CD_VI);
+  const sau = Logic.soDuCacVi(DS_VI, CD_VI);
+  const tong = r => r.thuTu.reduce((s, v) => s + r.vi[v].con, 0);
+  bang(tong(truoc), tong(sau));
+});
+
 nhom("Hạn mức chi tiêu");
 
 const DS_HM = [
