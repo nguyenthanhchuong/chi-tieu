@@ -94,7 +94,7 @@ const Logic = (function () {
     "Giải trí": "PLAY", "Mua sắm cá nhân": "PLAY", "Mua sắm": "PLAY",
     "Học tập": "EDU",
     "Từ thiện": "GIVE", "Biếu tặng": "GIVE",
-    "Đầu tư": "FFA"
+    "Đầu tư": "FFA", "Mua tài sản": "FFA"
   };
 
   function doanLo(danhMuc) {
@@ -657,6 +657,44 @@ const Logic = (function () {
     };
   }
 
+  // ===== Tình hình hiện tại =====
+  // Ảnh chụp tại HÔM NAY, không theo kỳ: "giờ còn bao nhiêu, nợ ai, ai nợ mình".
+  // Tiền còn lấy theo VÍ (tiền thật đang nắm), không theo lọ — lọ chỉ nói tiền
+  // đó DÀNH cho việc gì, xem ở tab Lọ.
+  //
+  // CẢNH BÁO: "rong" KHÔNG phải tài sản ròng. Sổ này không ghi nhà/đất/xe, nên
+  // một khoản vay mua nhà kéo số này âm rất sâu trong khi căn nhà đối ứng không
+  // nằm ở đâu cả. Chỗ nào hiện "rong" cũng phải hiện kèm dòng "chưa tính nhà/đất",
+  // nếu không người xem sẽ tưởng mình đang vỡ nợ.
+  function tinhHinhHienTai(khoan, caiDatVi, soTietKiem) {
+    const vi = soDuCacVi(khoan, caiDatVi);
+    const tienCon = Object.keys(vi.vi)
+      .reduce((s, k) => s + (Number(vi.vi[k].con) || 0), 0);
+
+    const dsNo = soDuNo(khoan);
+    const no = tomTatNo(dsNo);
+
+    const tk = tomTatTietKiem(trangThaiTietKiem(soTietKiem || []));
+
+    // Gộp mọi thứ là tiền: trong ví + đang gửi + người ta sẽ trả mình,
+    // trừ đi phần mình sẽ phải trả người ta.
+    const rong = tienCon + tk.tongGoc + no.hoNoMinh - no.minhNoHo;
+
+    return {
+      tienCon,
+      vi: vi.vi,
+      thuTuVi: vi.thuTu,
+      chuaGanVi: vi.chuaGanVi,
+      tietKiem: tk.tongGoc,
+      soSoTietKiem: tk.soSo,
+      hoNoMinh: no.hoNoMinh,
+      minhNoHo: no.minhNoHo,
+      dsNo,
+      soNguoiNo: no.soNguoi,
+      rong
+    };
+  }
+
   // ===== Nội dung khoản =====
   // "Nội dung" là thứ anh thật sự tiêu: danh mục là Ăn uống, nội dung là
   // "Hủ tíu Nam Vang". Đây vốn là cột Ghi chú, nay thành bắt buộc.
@@ -931,7 +969,7 @@ const Logic = (function () {
     laKhoanThu, laChuyenLo, laChuyenVi, laKhoanChi,
     LOAI_NO, laKhoanNo, noLamTienRa, soDuNo, tomTatNo,
     NGUONG_SAP_DAO_HAN, themThang, ngayDaoHan, soNgayConLai,
-    laiDuKien, trangThaiTietKiem, tomTatTietKiem,
+    laiDuKien, trangThaiTietKiem, tomTatTietKiem, tinhHinhHienTai,
     VI_MAC_DINH, danhSachVi, soDuCacVi, kiemTraChuyenVi,
     khoangKy, nhanKy, trongKhoang, tongHopKy, friendlyError,
     // Sáu chiếc lọ

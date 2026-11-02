@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Sổ Chi Tiêu">
-<link rel="stylesheet" href="style.css?v=30">
+<link rel="stylesheet" href="style.css?v=31">
 </head>
 <body>
 
@@ -474,6 +474,11 @@
   <!-- ===== Màn hình thống kê ===== -->
   <div id="tab-thongke" hidden>
     <section class="stats">
+
+      <!-- Tình hình hiện tại — ảnh chụp tại HÔM NAY, cố ý đặt NGOÀI bộ chọn kỳ
+           bên dưới: đây không phải số của một kỳ nên tuần/tháng/quý/năm không
+           được đụng vào nó. -->
+      <div class="stat-block hiennay" id="hiennay-block"></div>
       <div class="chips period" id="stat-modes"></div>
 
       <div class="period-nav">
@@ -516,7 +521,7 @@
   <div class="toast" id="toast" hidden></div>
 </div>
 
-<script src="logic.js?v=30"></script>
-<script src="app.js?v=30"></script>
+<script src="logic.js?v=31"></script>
+<script src="app.js?v=31"></script>
 </body>
 </html>
